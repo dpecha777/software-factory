@@ -33,7 +33,7 @@ work it points to rather than repeats.
 | `bin/check-workstation.sh` | one line per requirement, exit 1 on a missing required item; `--pm` for the PM profile; route-aware reviewer checks from process env | original checker tested on the operator's Mac; route-aware changes tested with Linux CLI fixtures in `bin/test_check_workstation.py`; macOS rerun pending |
 | `bin/check-project.sh` | one line per scaffold artifact in a code repo, exit 1 on a missing required one | kvart passes except the two items noted in the runbook; an unwired repo fails 30 lines (known-false) |
 | `marketplace/` | a Claude Code plugin marketplace named `software-factory`: the eight plugins the loop uses, seven from the group's catalog and one written here | `pm-workspace` 1.9.1 from the group catalog's `main` @ `ff7c175`; the other six from its `main` @ `f2bc651`; `rule-packs` is this repository's own generic example, not vendored |
-| `standard/` | the group standard: `context-standard/` v0.4 with `adopt.sh`, `agents-core.md` (the operating contract every session loads), the team-context and instructions-file templates | group standards repo @ `7cb157f` |
+| `standard/` | the group standard: `context-standard/` v0.5 (AGENTS.md contract + CLAUDE.md stub; ahead of the group repo, which is still v0.4) with `adopt.sh`, `agents-core.md` (the operating contract every session loads), the team-context and instructions-file templates | group standards repo @ `7cb157f` |
 | `templates/` | the wiring files kvart runs: tracked agent settings with the sensor hooks, MCP servers, sensor rule files, git hooks, the ledger sync script with its tests, the gate and ledger workflows, the ruleset body, the memory binding, the Jira workflow payload | kvart @ `e6b90e18`; see [templates/README.md](templates/README.md) for per-file notes |
 
 Third-party tools are not vendored; the workstation guide installs them from their own releases
@@ -80,8 +80,6 @@ the runbooks carry.
 
 | Where | Finding | Disposition |
 |---|---|---|
-| `standard/context-standard/adopt.sh` seed mode | a repo that already has `CLAUDE.md` gets no sentinel, so `--set-team` then refuses | workaround in the scaffold runbook D0.3; upstream fix: seed the sentinel into an existing file |
-| `standard/context-standard/template/docs/adr/0001-*.md` | the seeded ADR describes the v0.1 memory topology and pins `{{v0.1}}` | rewrite before merge, per D0.3; upstream: regenerate the template for v0.4 |
 | `standard/context-standard/adopt.sh --check` | passes with the team import line missing or pointing elsewhere | `bin/check-project.sh` greps the wired `org/repo` and `memspec stores` proves the binding; upstream: check the import |
 | `standard/context-standard/adopt.sh` | a token passed to curl on the command line is visible in the process list | upstream: `gh api` or a header file |
 | `standard/context-standard/.github/workflows/{propagate,fleet-report}.yml` | `create-github-app-token@v1` and `checkout@v4` by movable tag while holding the App private key | upstream: pin both to full commit SHAs, as every workflow in `templates/` does |

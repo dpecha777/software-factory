@@ -3,14 +3,17 @@
 #            overwritten by every --update. Teams never edit these.
 # seeded   — copied once at adoption, team-owned forever, never overwritten
 #            (only --force). Template improvements reach new adoptions only.
-# CLAUDE.md is seeded (team-owned body) but carries a managed sentinel header
+# stub     — CLAUDE.md: written when absent; must carry the line `@AGENTS.md`
+#            (a team may add Claude-only lines). Not in the lock.
+# AGENTS.md is seeded (team-owned body) but carries a managed sentinel header
 # that --update rewrites in place, preserving the team's front-matter values
 # (conformance, starter-kit, team-context).
 managed  docs/standard/agents-core.md
 managed  docs/adr/0000-template.md
 managed  docs/adr/README.md
 managed  .github/workflows/docs-lint.yml
-seeded   CLAUDE.md
+seeded   AGENTS.md
+stub     CLAUDE.md
 seeded   docs/manifest.md
 seeded   docs/architecture.md
 seeded   docs/agent-memory.md

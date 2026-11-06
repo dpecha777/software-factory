@@ -14,9 +14,11 @@ onboarding compose.
 ## Decision
 
 We adopt the org context standard (`context-standard`) at conformance level
-**{{L0|L1|L2}}**. Agent instructions (`CLAUDE.md`), embedded memory (`.memspec/`),
-decision records (`docs/adr/`), and current-state docs (`docs/`) live in this repo,
-versioned with the code. We pin `context-standard: {{v0.1}}` and resync via `adopt.sh`.
+**{{L0|L1|L2}}**. Agent instructions (`AGENTS.md`, with a `CLAUDE.md` stub that imports
+it for Claude Code), decision records (`docs/adr/`) and current-state docs (`docs/`) live
+in this repo, versioned with the code. Memory does not: the repo carries only the
+`.memspec.yaml` pointer, and durable memory lives in the team store in the team-context
+repo, reached through promote PRs. We pin `context-standard: v0.5` and resync via `adopt.sh`.
 
 ## Consequences
 

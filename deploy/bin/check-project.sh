@@ -15,9 +15,17 @@ fo() { [ -f "$1" ] && ok "$1" "${2:-}" || warn "$1" "${2:-}"; }
 g()  { grep -qE "$2" "$1" 2>/dev/null && ok "$1: $3" || miss "$1: $3"; }
 
 echo "== knowledge plane (context standard, memory binding)"
-f CLAUDE.md
-g CLAUDE.md '<!-- context-standard:begin -->' "managed header (adopt.sh ran)"
-g CLAUDE.md 'team-context: [A-Za-z0-9._-]+/[A-Za-z0-9._-]+' "team-context wired to an org/repo (not none, not unset)"
+# v0.5: the contract is AGENTS.md and CLAUDE.md imports it; a v0.4 repo keeps it in CLAUDE.md.
+RF=AGENTS.md
+if ! grep -q '<!-- context-standard:begin -->' AGENTS.md 2>/dev/null && grep -q '<!-- context-standard:begin -->' CLAUDE.md 2>/dev/null; then
+  RF=CLAUDE.md; warn "AGENTS.md contract (v0.5)" "v0.4 layout, contract in CLAUDE.md: adopt.sh --migrate-rule-file ."
+fi
+f "$RF"
+g "$RF" '<!-- context-standard:begin -->' "managed header (adopt.sh ran)"
+g "$RF" 'team-context: [A-Za-z0-9._-]+/[A-Za-z0-9._-]+' "team-context wired to an org/repo (not none, not unset)"
+if [ "$RF" = AGENTS.md ]; then
+  grep -qxF '@AGENTS.md' CLAUDE.md 2>/dev/null && ok "CLAUDE.md: imports AGENTS.md" || miss "CLAUDE.md: imports AGENTS.md" "Claude Code skips AGENTS.md when any CLAUDE.md sits above the repo (adopt.sh --update .)"
+fi
 f .context-standard.lock
 f docs/standard/agents-core.md "the operating contract, vendored"
 f .memspec.yaml "standard pointer"

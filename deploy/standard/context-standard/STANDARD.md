@@ -1,4 +1,4 @@
-# Repository Context Standard — v0.4
+# Repository Context Standard — v0.5
 
 Normative conventions for **where project knowledge lives and how a repo binds to
 it**: agent instructions, machine-operated memory, human decision records, and
@@ -46,11 +46,11 @@ org. v0.4 makes that split explicit and gives each layer exactly one home.
 |---|---|---|---|
 | **Org** | group-standards: `agents-core.md` | org agent contract, operating triad, model/effort tiering | vendored `docs/standard/agents-core.md` (managed) |
 | **Team** | `<org>/<team>-team-context` | domain knowledge, specs, cross-repo decisions, team memory | fixed-path mount + `@import` from the repo shim (NEW in v0.4) |
-| **Repo** | `<repo>/CLAUDE.md` + `docs/` + `.memspec.yaml` | build/test/run, protected areas, repo conventions, pointer binding memory to the team store | native cwd load (unchanged) |
+| **Repo** | `<repo>/AGENTS.md` (+ `CLAUDE.md` stub) + `docs/` + `.memspec.yaml` | build/test/run, protected areas, repo conventions, pointer binding memory to the team store | native cwd load (unchanged) |
 
 **Rule of placement: knowledge goes in the highest layer where it is true.** If a
 fact holds for every repo the team owns, it belongs in team-context, not copied into
-N repo shims. The repo `CLAUDE.md` carries only what is cwd-coupled — the invocations,
+N repo shims. The repo `AGENTS.md` carries only what is cwd-coupled — the invocations,
 the no-touch paths, the sharp edges specific to *this* checkout. Duplicating team or
 org content per repo recreates exactly the drift the split exists to kill.
 
@@ -62,7 +62,8 @@ per-team reviewer assignment sit outside this standard.
 
 ```
 <repo>/
-├── CLAUDE.md                        # MUST — managed sentinel header + team-owned body
+├── AGENTS.md                        # MUST — managed sentinel header + team-owned body (v0.5)
+├── CLAUDE.md                        # MUST — stub carrying `@AGENTS.md` (Claude Code entry point)
 ├── .context-standard.lock               # MUST — generated receipt: version + managed-file shas
 ├── .memspec.yaml                    # MUST — pointer binding this repo to the team memspec store
 ├── docs/
@@ -86,7 +87,7 @@ The class of each template file is declared in `template/MANIFEST`; the full
 day-2 mechanics are in `governance/distribution.md`.
 
 The **team** layer is not a file in this layout — it lives in a separate
-`*-team-context` repo, declared by the `team-context:` front-matter key in `CLAUDE.md`
+`*-team-context` repo, declared by the `team-context:` front-matter key in `AGENTS.md`
 and mounted at a fixed path in the sandbox (§4, §8).
 
 **Polyglot-safe by design.** This standard governs documentation and memory only.
@@ -96,13 +97,13 @@ in the relevant starter kit, not here.
 
 ## 3. Conformance levels — adopt gradually
 
-Adoption is **staged**. A repo declares its level in `CLAUDE.md`; it ratchets up as
+Adoption is **staged**. A repo declares its level in `AGENTS.md`; it ratchets up as
 the team matures. **No repo is expected to reach L2 on day one.** Rules tighten with
 observed maturity, not by mandate — that is deliberate, and it is also the anti-drift
 mechanism: a repo can sit at L0 honestly instead of faking L2 compliance.
 
 - **L0 — Seeded** (~15 min, every repo starts here)
-  `CLAUDE.md` present with the standard header + memspec contract; the `team-context:`
+  `AGENTS.md` present with the standard header + memspec contract, `CLAUDE.md` importing it; the `team-context:`
   front-matter key present with a **resolved** value (`<org>/<repo>` or `none` — a
   bare `unset` does **not** pass L0; a migrated repo can't sit at L0 with the team
   question unanswered); `.memspec.yaml` pointer present;
@@ -118,15 +119,22 @@ mechanism: a repo can sit at L0 honestly instead of faking L2 compliance.
   `team-context:` front-matter key (drift tripwire).
 
 A team picks its target level per repo. Promotion is a PR that flips the level in
-`CLAUDE.md` and satisfies the gate. Demotion is allowed and honest.
+`AGENTS.md` and satisfies the gate. Demotion is allowed and honest.
 
-## 4. `CLAUDE.md` contract
+## 4. `AGENTS.md` contract (and the `CLAUDE.md` stub)
 
-Root file. `CLAUDE.md` is what the org runtime loads natively, and the failure
-asymmetry favors it: a missing `CLAUDE.md` fails silently for the majority tool, so
-that is the name that must always be present. Other-tool users copy or rename; if a
-tool that reads `AGENTS.md` natively ever matters, a one-line pointer file or a
-symlink closes the gap in an afternoon. MUST contain, in order:
+Root file, since v0.5. `AGENTS.md` is the name every agent tool reads natively (Codex,
+Gemini CLI, Pi, Cursor, opencode), and teams run more than one of them. Claude Code
+reads it too, but only as a fallback: its built-in AGENTS.md support skips the file
+whenever a `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in the repo or
+**any parent directory**, and `~/.claude/CLAUDE.md` is one for every repo under
+`$HOME` (measured 2026-11-06, Claude Code 2.1.316; ADR 0019 in software-factory). So
+the failure asymmetry that made `CLAUDE.md` canonical in v0.4 still holds, and it is
+closed with a stub: the repo MUST also carry a tracked `CLAUDE.md` whose contract line
+is `@AGENTS.md`. A team MAY add Claude-only lines to the stub; repo rules go in
+`AGENTS.md`. Personal notes go in `CLAUDE.local.md`, which stays gitignored.
+
+`AGENTS.md` MUST contain, in order:
 
 1. **Managed sentinel header** (`<!-- context-standard:begin -->` … `end`) — front-matter:
 
@@ -215,7 +223,7 @@ mount path (§8.2). This is the only durable memory a code repo references.
 ## 7. Versioning & governance
 
 This standard is versioned `vMAJOR.MINOR` (see `governance/VERSIONING.md`). A repo
-records the version it adopted in `CLAUDE.md` front-matter and `.context-standard.lock`.
+records the version it adopted in `AGENTS.md` front-matter and `.context-standard.lock`.
 `docs-lint` verifies managed-file shas against the lock and flags a repo that trails
 the current major. MAJOR updates arrive as automatically-opened `chore/context-standard-vX.Y`
 PRs; MINOR updates are advisory; check-logic fixes ship via the referenced reusable

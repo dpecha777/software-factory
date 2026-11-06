@@ -23,3 +23,4 @@ The design's own decisions, in the format it asks adopters to use
 | [0016](0016-the-reviewer-gets-a-computed-impact-set.md) | The reviewer gets a computed impact set, and every module in it gets a verdict | proposed |
 | [0017](0017-mechanical-changes-ship-as-a-recipe.md) | Mechanical changes ship as a recipe: the recipe is reviewed, the diff is checked to be its output | proposed |
 | [0018](0018-graduation-into-a-context-repo-is-pr-only-by-default.md) | Graduation into a context repo is PR-only by default; a repo opts into auto-merge | accepted |
+| [0019](0019-the-repo-contract-is-agents-md-behind-a-claude-md-stub.md) | The repo contract is AGENTS.md, behind a CLAUDE.md stub | accepted |

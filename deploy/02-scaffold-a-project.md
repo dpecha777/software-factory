@@ -111,21 +111,18 @@ $SF/deploy/standard/context-standard/adopt.sh --set-team <org>/<team>-team-conte
 $SF/deploy/standard/context-standard/adopt.sh --check .
 ```
 
-The script seeds the sentinel header in `CLAUDE.md` when the file is absent (an `AGENTS.md`
-sentinel migrates with `--migrate-rule-file`), vendors `docs/standard/agents-core.md` (the
+The script seeds the contract in `AGENTS.md` (sentinel header plus team body) and a tracked
+`CLAUDE.md` stub whose line `@AGENTS.md` is how Claude Code reaches it (standard v0.5; a v0.4
+repo with the contract in `CLAUDE.md` moves with `--migrate-rule-file`). An existing `CLAUDE.md`
+keeps its lines below the import; move the repo rules out of it into `AGENTS.md`. It vendors `docs/standard/agents-core.md` (the
 operating contract; never edited in the repo), writes `.context-standard.lock`, the
 `.memspec.yaml` pointer and skeleton docs. Fill the seeded `{{PLACEHOLDERS}}` from the existing
 documentation, not from memory, and mark seeded docs "for L1 review".
 
-Two defects in the vendored standard to work around, both confirmed on 2026-09-16 and listed in
-[README.md](README.md) for upstreaming. First, a repo that already has a `CLAUDE.md` is left
-without the sentinel (seed mode treats the file as team-owned and skips it), so the `--set-team`
-step then refuses. Before the first command, move the existing file aside, let the seed write the
-template, then paste the repo's own body back under the closing sentinel line; `--check` is what
-proves the result. Second, the seeded `docs/adr/0001-adopt-context-standard.md` still describes
-the v0.1 topology (memory embedded in the code repo) and pins `{{v0.1}}`; rewrite it to what v0.4
-actually does (the pointer only, durable memory in the team repo, `context-standard: v0.4`) before
-it is merged, or it becomes an accepted record that contradicts the wiring.
+If the repo gitignores `CLAUDE.md` or `AGENTS.md` as personal files, un-ignore both, ignore
+`CLAUDE.local.md` instead, and tell every developer to run `mv CLAUDE.md CLAUDE.local.md` (and to move a personal
+`AGENTS.md` aside) before pulling the adoption: git overwrites an ignored file without asking when a tracked one arrives
+`[measured 2026-11-05]`.
 
 Then bind the memory engine, which reads its own file rather than the standard's pointer:
 
