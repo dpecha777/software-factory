@@ -61,4 +61,22 @@ printf 'someone else\n' > "$R/AGENTS.md"; cp "$R/CLAUDE.md" "$W/c.before"
 run --migrate-rule-file "$R"
 expect "ambiguous migrate warns and changes nothing" 'grep -q "Merge AGENTS.md" "$W/out" && cmp -s "$R/CLAUDE.md" "$W/c.before" && grep -qxF "someone else" "$R/AGENTS.md"'
 
+# 6. an existing AGENTS.md without the sentinel keeps its text and gains the header
+R="$W/ownagents"; repo "$R"; printf 'TEAM AGENTS RULE\n' > "$R/AGENTS.md"; run "$R"
+expect "own AGENTS.md gains the sentinel"     'grep -q "context-standard:begin" "$R/AGENTS.md" && grep -qxF "TEAM AGENTS RULE" "$R/AGENTS.md"'
+expect "own AGENTS.md: set-team then works"   'run --set-team acme/z-team-context "$R" && run --check "$R"'
+expect "rewritten files stay 0644"            '[ "$(stat -f %Lp "$R/AGENTS.md" 2>/dev/null || stat -c %a "$R/AGENTS.md")" = 644 ]'
+
+# 7. migrate brings managed files to the version it stamps into the lock
+R="$W/stale"; repo "$R"; run "$R"; run --set-team acme/s-team-context "$R"
+rm "$R/CLAUDE.md"; mv "$R/AGENTS.md" "$R/CLAUDE.md"; printf '# stale v0.4 caller\n' > "$R/.github/workflows/docs-lint.yml"
+run --migrate-rule-file "$R"
+expect "migrate syncs a stale managed file"   'cmp -s "$R/.github/workflows/docs-lint.yml" "$HERE/template/.github/workflows/docs-lint.yml" && run --check "$R"'
+
+# 8. a planted symlink at the old fixed temp name is never written through
+R="$W/plant"; repo "$R"; printf 'MINE\n' > "$R/CLAUDE.md"; printf 'OUTSIDE\n' > "$W/outside"
+ln -s "$W/outside" "$R/CLAUDE.md.tmp"; run "$R"
+expect "no write through a planted .tmp symlink" 'grep -qxF OUTSIDE "$W/outside" && [ "$(wc -l < "$W/outside")" -eq 1 ] && grep -qxF "@AGENTS.md" "$R/CLAUDE.md"'
+expect "no temp file left behind"             '[ -z "$(find "$W" -name ".adopt.*")" ]'
+
 if [ "$fails" -eq 0 ]; then echo "adopt.test.sh: all passed."; else echo "adopt.test.sh: $fails FAILED"; exit 1; fi

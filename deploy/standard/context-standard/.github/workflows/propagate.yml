@@ -54,7 +54,7 @@ jobs:
           REPOS_OVERRIDE: ${{ inputs.repos }}
         run: |
           set -euo pipefail
-          VERSION=$(grep -Eo 'context-standard: v[0-9]+\.[0-9]+' context-standard/template/CLAUDE.md | head -1 | awk '{print $2}')
+          VERSION=$(grep -Eo 'context-standard: v[0-9]+\.[0-9]+' context-standard/template/AGENTS.md | head -1 | awk '{print $2}')
           BRANCH="chore/context-standard-$VERSION"
           if [ -n "$REPOS_OVERRIDE" ]; then
             repos="$REPOS_OVERRIDE"
@@ -68,6 +68,7 @@ jobs:
           for repo in $repos; do
             echo "── $repo"
             rm -rf work && gh repo clone "$repo" work -- --depth 1
+            ./context-standard/adopt.sh --migrate-rule-file work   # v0.4 → v0.5 layout; no-op otherwise
             ./context-standard/adopt.sh --update work
             # status --porcelain also catches newly created untracked files, which
             # `git diff --quiet` would miss (worktree vs index only).

@@ -172,14 +172,20 @@ build_sentinel() {
 replace_block() {
   local tgt="$1" blockfile="$2"
   require_end_sentinel "$tgt"
+  tmp_beside "$tgt"
   awk -v hdrfile="$blockfile" '
     /<!-- context-standard:begin -->/ {while ((getline l < hdrfile) > 0) print l; inblk=1; next}
     /<!-- context-standard:end/       {inblk=0; next}
-    !inblk {print}' "$tgt" > "$tgt.tmp" && mv "$tgt.tmp" "$tgt"
+    !inblk {print}' "$tgt" > "$TMPF" && mv "$TMPF" "$tgt"
 }
 
 read_fm() { # read_fm <file> <key> — first front-matter value for key
   sed -n "s/^$2: *//p" "$1" | head -1
+}
+
+tmp_beside() { # tmp_beside <file> — a fresh temp file in the same directory (mv stays
+  # atomic; never a fixed name a checkout could pre-plant as a symlink). Sets TMPF.
+  TMPF="$(mktemp "$(dirname "$1")/.adopt.XXXXXX")"; chmod 644 "$TMPF"  # mktemp makes 0600
 }
 
 has_sentinel() { grep -q '<!-- context-standard:begin -->' "$1" 2>/dev/null; }
@@ -207,7 +213,8 @@ ensure_stub() { # CLAUDE.md must import AGENTS.md; a team's own lines are kept b
   echo "  prepend: $STUB_FILE gets the stub import; its existing lines stay below it."
   echo "           Move repo rules from it into AGENTS.md; keep only Claude-only lines there."
   [ "$dryrun" = 1 ] && return 0
-  { cat "$TEMPLATE/$STUB_FILE"; echo; cat "$tgt"; } > "$tgt.tmp" && mv "$tgt.tmp" "$tgt"
+  tmp_beside "$tgt"
+  { cat "$TEMPLATE/$STUB_FILE"; echo; cat "$tgt"; } > "$TMPF" && mv "$TMPF" "$tgt"
 }
 
 legacy_note() {
@@ -221,7 +228,8 @@ update_sentinel() { # rewrite only the managed header block; body untouched;
   grep -q '<!-- context-standard:begin -->' "$tgt" || {
     echo "  WARN: $RULE has no sentinel block — prepending one; review the file manually."
     [ "$dryrun" = 1 ] && return 0
-    { build_sentinel "L0" "none" "unset"; echo; cat "$tgt"; } > "$tgt.tmp" && mv "$tgt.tmp" "$tgt"
+    tmp_beside "$tgt"
+    { build_sentinel "L0" "none" "unset"; echo; cat "$tgt"; } > "$TMPF" && mv "$TMPF" "$tgt"
     return
   }
   require_end_sentinel "$tgt"
@@ -303,6 +311,8 @@ migrate_rule_file() { # --migrate-rule-file: v0.4 CLAUDE.md contract → AGENTS.
   build_sentinel "$conf" "$kit" "$team" > "$blk"
   replace_block "$new" "$blk"
   rm -f "$blk"
+  # the lock is stamped with this version: bring the managed files to it first
+  files_of managed | while read -r rel; do sync_managed "$rel"; done
   write_lock
   echo "  done. commit the rename and the new $STUB_FILE together (git add $STUB_FILE)."
 }
@@ -378,6 +388,8 @@ case "$mode" in
     files_of seeded  | while read -r rel; do
       # a v0.4 repo keeps its contract in CLAUDE.md: never seed a second one
       if [ "$rel" = "$RULE_FILE" ] && [ "$LEGACY" = 1 ]; then echo "  skip: $RULE_FILE (contract is in $LEGACY_RULE_FILE)"; continue; fi
+      # an existing AGENTS.md without the sentinel is the team's: keep it, add the header
+      if [ "$rel" = "$RULE_FILE" ] && [ -f "$target/$RULE_FILE" ]; then update_sentinel; continue; fi
       seed_seeded "$rel"
     done
     if [ "$LEGACY" = 1 ]; then legacy_note; else ensure_stub; fi

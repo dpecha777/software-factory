@@ -1,4 +1,4 @@
-# Repository Context Standard — v0.4
+# Repository Context Standard — v0.5
 
 Normative conventions for **where project knowledge lives and how a repo binds to
 it**: agent instructions, machine-operated memory, human decision records, and
@@ -87,7 +87,7 @@ The class of each template file is declared in `template/MANIFEST`; the full
 day-2 mechanics are in `governance/distribution.md`.
 
 The **team** layer is not a file in this layout — it lives in a separate
-`*-team-context` repo, declared by the `team-context:` front-matter key in `CLAUDE.md`
+`*-team-context` repo, declared by the `team-context:` front-matter key in `AGENTS.md`
 and mounted at a fixed path in the sandbox (§4, §8).
 
 **Polyglot-safe by design.** This standard governs documentation and memory only.
@@ -97,13 +97,13 @@ in the relevant starter kit, not here.
 
 ## 3. Conformance levels — adopt gradually
 
-Adoption is **staged**. A repo declares its level in `CLAUDE.md`; it ratchets up as
+Adoption is **staged**. A repo declares its level in `AGENTS.md`; it ratchets up as
 the team matures. **No repo is expected to reach L2 on day one.** Rules tighten with
 observed maturity, not by mandate — that is deliberate, and it is also the anti-drift
 mechanism: a repo can sit at L0 honestly instead of faking L2 compliance.
 
 - **L0 — Seeded** (~15 min, every repo starts here)
-  `CLAUDE.md` present with the standard header + memspec contract; the `team-context:`
+  `AGENTS.md` present with the standard header + memspec contract, `CLAUDE.md` importing it; the `team-context:`
   front-matter key present with a **resolved** value (`<org>/<repo>` or `none` — a
   bare `unset` does **not** pass L0; a migrated repo can't sit at L0 with the team
   question unanswered); `.memspec.yaml` pointer present;
@@ -119,7 +119,7 @@ mechanism: a repo can sit at L0 honestly instead of faking L2 compliance.
   `team-context:` front-matter key (drift tripwire).
 
 A team picks its target level per repo. Promotion is a PR that flips the level in
-`CLAUDE.md` and satisfies the gate. Demotion is allowed and honest.
+`AGENTS.md` and satisfies the gate. Demotion is allowed and honest.
 
 ## 4. `AGENTS.md` contract (and the `CLAUDE.md` stub)
 
@@ -223,7 +223,7 @@ mount path (§8.2). This is the only durable memory a code repo references.
 ## 7. Versioning & governance
 
 This standard is versioned `vMAJOR.MINOR` (see `governance/VERSIONING.md`). A repo
-records the version it adopted in `CLAUDE.md` front-matter and `.context-standard.lock`.
+records the version it adopted in `AGENTS.md` front-matter and `.context-standard.lock`.
 `docs-lint` verifies managed-file shas against the lock and flags a repo that trails
 the current major. MAJOR updates arrive as automatically-opened `chore/context-standard-vX.Y`
 PRs; MINOR updates are advisory; check-logic fixes ship via the referenced reusable
