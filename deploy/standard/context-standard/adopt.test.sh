@@ -79,4 +79,19 @@ ln -s "$W/outside" "$R/CLAUDE.md.tmp"; run "$R"
 expect "no write through a planted .tmp symlink" 'grep -qxF OUTSIDE "$W/outside" && [ "$(wc -l < "$W/outside")" -eq 1 ] && grep -qxF "@AGENTS.md" "$R/CLAUDE.md"'
 expect "no temp file left behind"             '[ -z "$(find "$W" -name ".adopt.*")" ]'
 
+# 9. symlinks on any path adopt.sh writes are refused, files and parent dirs alike
+for f in AGENTS.md CLAUDE.md; do
+  R="$W/sym-$f"; repo "$R"; printf 'OUTSIDE_SECRET\n' > "$W/secret-$f"; ln -s "$W/secret-$f" "$R/$f"
+  expect "seed refuses a symlinked $f"         '! run "$R" && grep -q "is a symlink" "$W/out" && [ -L "$R/$f" ]'
+done
+R="$W/symdir"; repo "$R"; mkdir -p "$W/elsewhere"; ln -s "$W/elsewhere" "$R/docs/adr"
+expect "seed refuses a symlinked parent dir"   '! run "$R" && [ -z "$(ls -A "$W/elsewhere")" ]'
+R="$W/dangling"; repo "$R"; run "$R"; run --set-team acme/d-team-context "$R"; rm "$R/AGENTS.md"; mkdir -p "$W/nowhere"; ln -s "$W/nowhere/AGENTS.md" "$R/AGENTS.md"
+expect "update refuses a dangling AGENTS.md link" '! run --update "$R" && [ ! -e "$W/nowhere/AGENTS.md" ]'
+
+# 10. every managed file is pinned to LF, so a CRLF checkout cannot fake drift
+R="$W/lf"; repo "$R"; run "$R"
+expect "gitattributes pins each managed file"   'grep -qxF "docs/adr/README.md text eol=lf" "$R/.gitattributes" && grep -qxF ".github/workflows/docs-lint.yml text eol=lf" "$R/.gitattributes"'
+run "$R"; expect "gitattributes lines are not duplicated" '[ "$(grep -c "docs/adr/README.md" "$R/.gitattributes")" = 1 ]'
+
 if [ "$fails" -eq 0 ]; then echo "adopt.test.sh: all passed."; else echo "adopt.test.sh: $fails FAILED"; exit 1; fi

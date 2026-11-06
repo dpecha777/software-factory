@@ -331,7 +331,9 @@ write_lock() { # lock = version + sha256 per managed file, from target bytes
 
 write_gitattributes() { # sha-covered bytes must survive autocrlf checkouts
   local line added=0
-  for line in "docs/standard/* text eol=lf" "$LOCK text eol=lf"; do
+  local rel lines=("docs/standard/* text eol=lf" "$LOCK text eol=lf")
+  while read -r rel; do case "$rel" in docs/standard/*) ;; *) lines+=("$rel text eol=lf") ;; esac; done < <(files_of managed)
+  for line in "${lines[@]}"; do
     grep -qxF "$line" "$target/.gitattributes" 2>/dev/null && continue
     echo "  append: .gitattributes ($line)"
     [ "$dryrun" = 1 ] || echo "$line" >> "$target/.gitattributes"
@@ -380,6 +382,23 @@ check() {
   [ -f "$target/.memspec.yaml" ] && echo "  ok: .memspec.yaml" || { echo "  FAIL: .memspec.yaml pointer missing"; fail=1; }
   [ "$fail" = 0 ] && echo "check: PASS" || { echo "check: FAIL"; exit 1; }
 }
+
+# Every path adopt.sh may write, and each of its parent directories, must not be a
+# symlink: a target checkout is semi-trusted, and a link would carry outside bytes
+# into the repo (later committed by propagate) or a write out of the target.
+refuse_symlinks() {
+  local rel part acc bad=0
+  for rel in "$RULE_FILE" "$STUB_FILE" "$LOCK" .gitattributes $(files_of managed) $(files_of seeded) $(files_of stub); do
+    acc="$target"
+    IFS=/ read -r -a parts <<< "$rel"
+    for part in "${parts[@]}"; do
+      acc="$acc/$part"
+      if [ -L "$acc" ]; then echo "  FAIL: ${acc#"$target"/} is a symlink — refusing to read or write through it" >&2; bad=1; break; fi
+    done
+  done
+  [ "$bad" = 0 ] || exit 1
+}
+[ "$mode" = check ] || refuse_symlinks
 
 case "$mode" in
   seed)

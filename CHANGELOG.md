@@ -9,7 +9,9 @@ that Claude Code needs because it reads `AGENTS.md` only as a fallback (adr 0019
   `template/CLAUDE.md` is the `@AGENTS.md` stub (new `stub` class in MANIFEST). `adopt.sh` seeds
   both, prepends the import to an existing `CLAUDE.md`, migrates a v0.4 `CLAUDE.md` contract with
   `--migrate-rule-file`, and `--check` fails a missing import and warns on v0.4. New
-  `adopt.test.sh` (20 cases, a missing import among them). STANDARD §2/§4, VERSIONING, the
+  `adopt.test.sh` (32 cases, a missing import among them). adopt.sh refuses any symlink on a
+  path it writes (parent directories included) and rewrites through a `mktemp` file, never a
+  fixed `.tmp` name; every managed file is pinned to LF in `.gitattributes`. STANDARD §2/§4, VERSIONING, the
   distribution note, the seeded ADR 0001 (pointer topology, v0.5) and `docs-lint.yml` paths follow.
 - `deploy/bin/check-project.sh`: checks the contract in `AGENTS.md` plus the stub import, and
   reports a v0.4 layout with the migration command.

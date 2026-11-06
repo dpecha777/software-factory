@@ -19,7 +19,9 @@ with a warning, until it migrates.
   sentinel keeps its lines below the prepended import (was: left without a sentinel, so
   `--set-team` refused). `--migrate-rule-file` now runs v0.4 `CLAUDE.md` → `AGENTS.md` +
   stub; `--check` fails a v0.5 repo whose `CLAUDE.md` lacks `@AGENTS.md` and warns on a
-  v0.4 layout. `adopt.test.sh` pins all of it.
+  v0.4 layout. Paths it writes are refused when they (or a parent directory) are symlinks;
+  rewrites go through a `mktemp` file; `.gitattributes` pins every managed file to LF.
+  `adopt.test.sh` pins all of it.
 - `docs-lint.yml` also triggers on `AGENTS.md` changes (managed file: its sha changes).
 - Seeded ADR 0001 describes the pointer topology (no in-repo store) and pins v0.5.
 
