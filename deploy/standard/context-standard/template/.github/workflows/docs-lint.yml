@@ -5,7 +5,7 @@ name: docs-lint
 
 on:
   pull_request:
-    paths: ["docs/**", "CLAUDE.md", ".memspec.yaml", ".memspec/**", ".context-standard.lock"]
+    paths: ["docs/**", "AGENTS.md", "CLAUDE.md", ".memspec.yaml", ".memspec/**", ".context-standard.lock"]
   push:
     branches: [main]
 

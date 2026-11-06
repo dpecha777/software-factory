@@ -21,7 +21,7 @@ front door; if it disagrees with either of those, they win.
 git clone <this-repo> /tmp/context-standard
 /tmp/context-standard/adopt.sh /path/to/your-repo
 # in your repo afterwards:
-#   1. fill the {{PLACEHOLDERS}} in CLAUDE.md and docs/   (seeded files are yours)
+#   1. fill the {{PLACEHOLDERS}} in AGENTS.md and docs/   (seeded files are yours)
 #   2. wire the team layer:  ./adopt.sh --set-team <org>/<team>-team-context .
 #   3. gh repo edit --add-topic context-standard              ← how updates find you
 #   4. commit everything, including .context-standard.lock
@@ -40,7 +40,7 @@ PR: chore: context-standard v0.3                        [MAJOR]
 
   docs/standard/agents-core.md | 4 ++++    ← the actual change
   .context-standard.lock           | 4 +-      ← version + sha bump
-  CLAUDE.md                    | 2 +-      ← header version line only
+  AGENTS.md                    | 2 +-      ← header version line only
 ```
 
 Your team-owned files are never in the diff — teams and the center don't co-own any
@@ -54,7 +54,7 @@ change centrally, or fork consciously with an ADR. Full matrix and rationale:
 
 | Path | What |
 |---|---|
-| [`STANDARD.md`](STANDARD.md) | The normative spec — layers, layout, conformance levels, CLAUDE.md contract |
+| [`STANDARD.md`](STANDARD.md) | The normative spec — layers, layout, conformance levels, AGENTS.md contract and CLAUDE.md stub |
 | [`template/`](template/) | The payload a repo receives; [`template/MANIFEST`](template/MANIFEST) declares each file's class |
 | [`adopt.sh`](adopt.sh) | Seed / `--update` / `--check` / `--force` |
 | [`governance/distribution.md`](governance/distribution.md) | Day-2 design: managed/seeded/referenced, lock, push/pull, fleet report, kit fork story |

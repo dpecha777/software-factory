@@ -71,8 +71,9 @@ plus an import line, not a copy-free mechanism. And `@import` is Claude Code
 syntax; Codex and other non-Claude agents reading the rule file do not expand it,
 so the import must never be the *only* route to the content — hence the dual-mode
 pointer (`@import` + plain-English imperative) required by `STANDARD.md` §4.
-(CLAUDE.md has been the canonical rule-file name since the 2026-08-06 decision,
-v0.4; non-Claude tools are served by that plain-English sentence.)
+(CLAUDE.md was the canonical rule-file name from the 2026-08-06 decision, v0.4, to
+v0.5, which moved the contract to AGENTS.md behind a `CLAUDE.md` stub; see
+`STANDARD.md` §4.)
 
 **(c) Whole-file replace** (baseline) — trivially correct update mechanics, but
 destroys team-owned no-touch zones and done-when. Rejected outright; this is the
@@ -170,7 +171,8 @@ managed  docs/standard/agents-core.md
 managed  docs/adr/0000-template.md
 managed  docs/adr/README.md
 managed  .github/workflows/docs-lint.yml
-seeded   CLAUDE.md
+seeded   AGENTS.md
+stub     CLAUDE.md
 seeded   docs/manifest.md
 seeded   docs/architecture.md
 seeded   docs/agent-memory.md

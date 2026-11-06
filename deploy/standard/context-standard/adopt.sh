@@ -3,7 +3,7 @@
 #
 #   ./adopt.sh <target-repo>                    seed (day 1): managed + missing seeded files
 #   ./adopt.sh --update <target-repo>           resync (day 2): overwrite managed files,
-#                                               rewrite the CLAUDE.md sentinel header
+#                                               rewrite the AGENTS.md sentinel header
 #                                               (team front-matter values preserved;
 #                                               writes team-context: unset + warns when
 #                                               the key is absent), never touch seeded files
@@ -11,15 +11,22 @@
 #                                               team-context: key + the team @import line
 #                                               inside the sentinel, update the lock.
 #                                               Pass "none" to opt out. Idempotent.
-#   ./adopt.sh --migrate-rule-file <target>     rename a pre-v0.4 AGENTS.md → CLAUDE.md:
-#                                               AGENTS.md carries a sentinel and CLAUDE.md
-#                                               is absent → git mv + rewrite sentinel + lock.
-#                                               Both present → keep CLAUDE.md canonical, warn.
+#   ./adopt.sh --migrate-rule-file <target>     move a v0.4 contract CLAUDE.md → AGENTS.md:
+#                                               CLAUDE.md carries the sentinel and AGENTS.md
+#                                               is absent → git mv + CLAUDE.md stub (@AGENTS.md)
+#                                               + rewrite sentinel + lock. Anything else that
+#                                               is ambiguous → warn, touch nothing.
 #   ./adopt.sh --check  <target-repo>           verify: lock shas, sentinel, version (CI parity)
 #   ./adopt.sh --force  <target-repo>           overwrite EVERYTHING, seeded included (destructive)
 #   Add --dry-run to any mode to see what would happen without writing.
 #
-# File classes come from template/MANIFEST (managed / seeded) — see
+# Layout (v0.5): AGENTS.md is the contract (sentinel header + team body), read
+# natively by every agent tool; CLAUDE.md is a stub carrying `@AGENTS.md`, because
+# Claude Code loads AGENTS.md only as a fallback when no CLAUDE.md, .claude/CLAUDE.md
+# or CLAUDE.local.md exists in the repo or any parent directory (~/.claude/CLAUDE.md
+# under $HOME counts). A v0.4 repo (contract in CLAUDE.md) is still recognised.
+#
+# File classes come from template/MANIFEST (managed / seeded / stub) — see
 # governance/distribution.md. {{PLACEHOLDERS}} in seeded files are intentional;
 # fill them per repo after adoption.
 set -euo pipefail
@@ -27,7 +34,9 @@ set -euo pipefail
 STD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE="$STD_DIR/template"
 MANIFEST="$TEMPLATE/MANIFEST"
-RULE_FILE="CLAUDE.md"
+RULE_FILE="AGENTS.md"          # the contract, in the template and in a v0.5 repo
+STUB_FILE="CLAUDE.md"          # Claude Code entry point: carries `@AGENTS.md`
+LEGACY_RULE_FILE="CLAUDE.md"   # where a v0.4 repo keeps the contract
 VERSION="$(grep -Eo 'context-standard: v[0-9]+\.[0-9]+' "$TEMPLATE/$RULE_FILE" | head -1 | awk '{print $2}')"
 LOCK=".context-standard.lock"
 
@@ -173,11 +182,44 @@ read_fm() { # read_fm <file> <key> — first front-matter value for key
   sed -n "s/^$2: *//p" "$1" | head -1
 }
 
+has_sentinel() { grep -q '<!-- context-standard:begin -->' "$1" 2>/dev/null; }
+
+# resolve_rule — set RULE to the file in the target that holds the contract:
+# AGENTS.md (v0.5) when it carries the sentinel; CLAUDE.md when only it does (v0.4,
+# LEGACY=1); AGENTS.md otherwise (fresh repo).
+resolve_rule() {
+  LEGACY=0; RULE="$RULE_FILE"
+  if has_sentinel "$target/$RULE_FILE"; then return 0; fi
+  if has_sentinel "$target/$LEGACY_RULE_FILE"; then RULE="$LEGACY_RULE_FILE"; LEGACY=1; fi
+}
+
+stub_ok() { grep -qxF '@AGENTS.md' "$target/$STUB_FILE" 2>/dev/null; }
+
+ensure_stub() { # CLAUDE.md must import AGENTS.md; a team's own lines are kept below
+  local tgt="$target/$STUB_FILE"
+  if [ ! -e "$tgt" ]; then echo "  copy: $STUB_FILE (stub: @AGENTS.md)"; put "$STUB_FILE"; return 0; fi
+  if stub_ok; then echo "  ok (current): $STUB_FILE imports AGENTS.md"; return 0; fi
+  if has_sentinel "$tgt"; then
+    echo "  WARN: $STUB_FILE still carries a context-standard sentinel next to AGENTS.md."
+    echo "        Merge its body into AGENTS.md by hand, then reduce $STUB_FILE to the stub."
+    return 0
+  fi
+  echo "  prepend: $STUB_FILE gets the stub import; its existing lines stay below it."
+  echo "           Move repo rules from it into AGENTS.md; keep only Claude-only lines there."
+  [ "$dryrun" = 1 ] && return 0
+  { cat "$TEMPLATE/$STUB_FILE"; echo; cat "$tgt"; } > "$tgt.tmp" && mv "$tgt.tmp" "$tgt"
+}
+
+legacy_note() {
+  echo "  WARN: v0.4 layout: the contract is in $LEGACY_RULE_FILE. Since v0.5 it lives in AGENTS.md"
+  echo "        with a $STUB_FILE stub. Move it: adopt.sh --migrate-rule-file $target"
+}
+
 update_sentinel() { # rewrite only the managed header block; body untouched;
-  local tgt="$target/$RULE_FILE"  # team's conformance/starter-kit/team-context preserved
-  [ -f "$tgt" ] || { echo "  $RULE_FILE missing — seeding fresh copy"; put "$RULE_FILE"; return; }
+  local tgt="$target/$RULE"  # team's conformance/starter-kit/team-context preserved
+  [ -f "$tgt" ] || { echo "  $RULE missing — seeding fresh copy"; put "$RULE_FILE"; return; }
   grep -q '<!-- context-standard:begin -->' "$tgt" || {
-    echo "  WARN: $RULE_FILE has no sentinel block — prepending one; review the file manually."
+    echo "  WARN: $RULE has no sentinel block — prepending one; review the file manually."
     [ "$dryrun" = 1 ] && return 0
     { build_sentinel "L0" "none" "unset"; echo; cat "$tgt"; } > "$tgt.tmp" && mv "$tgt.tmp" "$tgt"
     return
@@ -189,24 +231,24 @@ update_sentinel() { # rewrite only the managed header block; body untouched;
   team="$(read_fm "$tgt" team-context)"
   if [ -z "$team" ]; then
     team="unset"
-    echo "  WARN: $RULE_FILE has no team-context key — writing 'unset'. Answer it with:"
+    echo "  WARN: $RULE has no team-context key — writing 'unset'. Answer it with:"
     echo "        adopt.sh --set-team <org>/<team>-team-context $target"
   fi
   local blk; blk="$(mktemp)"
   build_sentinel "$conf" "$kit" "$team" > "$blk"
   if cmp -s "$blk" <(sed -n '/<!-- context-standard:begin -->/,/<!-- context-standard:end/p' "$tgt"); then
-    echo "  ok (current): $RULE_FILE sentinel header"; rm -f "$blk"; return
+    echo "  ok (current): $RULE sentinel header"; rm -f "$blk"; return
   fi
-  echo "  sync: $RULE_FILE sentinel header (conformance=$conf starter-kit=$kit team-context=$team preserved)"
+  echo "  sync: $RULE sentinel header (conformance=$conf starter-kit=$kit team-context=$team preserved)"
   [ "$dryrun" = 1 ] && { rm -f "$blk"; return 0; }
   replace_block "$tgt" "$blk"
   rm -f "$blk"
 }
 
 set_team() { # --set-team: write team-context key + import line, update lock
-  local tgt="$target/$RULE_FILE"
-  [ -f "$tgt" ] || { echo "  FAIL: $RULE_FILE not found in $target — adopt the repo first"; exit 1; }
-  grep -q '<!-- context-standard:begin -->' "$tgt" || { echo "  FAIL: $RULE_FILE has no sentinel block — run adopt.sh --update first"; exit 1; }
+  resolve_rule; local tgt="$target/$RULE"
+  [ -f "$tgt" ] || { echo "  FAIL: $RULE not found in $target — adopt the repo first"; exit 1; }
+  grep -q '<!-- context-standard:begin -->' "$tgt" || { echo "  FAIL: $RULE has no sentinel block — run adopt.sh --update first"; exit 1; }
   require_end_sentinel "$tgt"
   local conf kit
   conf="$(read_fm "$tgt" conformance)"; [ -n "$conf" ] || conf="L0"
@@ -224,31 +266,30 @@ set_team() { # --set-team: write team-context key + import line, update lock
   esac
 }
 
-migrate_rule_file() { # --migrate-rule-file: AGENTS.md → CLAUDE.md
-  local old="$target/AGENTS.md" new="$target/$RULE_FILE"
-  if [ -f "$new" ] && [ -f "$old" ]; then
-    echo "  WARN: both AGENTS.md and $RULE_FILE exist — keeping $RULE_FILE canonical."
-    echo "        Reconcile any divergence by hand, then reduce AGENTS.md to a one-line"
-    echo "        pointer ('read CLAUDE.md') or delete it. Leaving AGENTS.md untouched."
+migrate_rule_file() { # --migrate-rule-file: v0.4 CLAUDE.md contract → AGENTS.md + stub
+  local old="$target/$LEGACY_RULE_FILE" new="$target/$RULE_FILE"
+  if has_sentinel "$new"; then
+    echo "  already v0.5: $RULE_FILE carries the sentinel"
+    ensure_stub
     return 0
   fi
-  if [ ! -f "$old" ]; then
-    echo "  nothing to migrate: no AGENTS.md in $target"
-    [ -f "$new" ] && echo "  ($RULE_FILE already present)"
+  if ! has_sentinel "$old"; then
+    echo "  nothing to migrate: no context-standard sentinel in $LEGACY_RULE_FILE or $RULE_FILE"
     return 0
   fi
-  grep -q '<!-- context-standard:begin -->' "$old" || {
-    echo "  WARN: AGENTS.md has no context-standard sentinel — not a managed rule file."
-    echo "        Not migrating automatically; rename by hand if intended."
+  if [ -e "$new" ]; then
+    echo "  WARN: $RULE_FILE exists without the sentinel while $LEGACY_RULE_FILE holds the contract."
+    echo "        Merge $RULE_FILE into the body of $LEGACY_RULE_FILE by hand, delete $RULE_FILE, re-run."
     return 0
-  }
-  echo "  migrate: AGENTS.md → $RULE_FILE (rename + rewrite sentinel to $VERSION)"
-  [ "$dryrun" = 1 ] && { echo "  (dry run) would git mv + rewrite sentinel + lock"; return 0; }
-  if git -C "$target" ls-files --error-unmatch AGENTS.md >/dev/null 2>&1; then
-    git -C "$target" mv AGENTS.md "$RULE_FILE"
+  fi
+  echo "  migrate: $LEGACY_RULE_FILE → $RULE_FILE (rename), $STUB_FILE becomes the @AGENTS.md stub"
+  [ "$dryrun" = 1 ] && { echo "  (dry run) would git mv + write stub + rewrite sentinel + lock"; return 0; }
+  if git -C "$target" ls-files --error-unmatch "$LEGACY_RULE_FILE" >/dev/null 2>&1; then
+    git -C "$target" mv "$LEGACY_RULE_FILE" "$RULE_FILE"
   else
     mv "$old" "$new"
   fi
+  put "$STUB_FILE"
   local conf kit team
   conf="$(read_fm "$new" conformance)"; [ -n "$conf" ] || conf="L0"
   kit="$(read_fm "$new" starter-kit)";  [ -n "$kit" ]  || kit="none"
@@ -263,7 +304,7 @@ migrate_rule_file() { # --migrate-rule-file: AGENTS.md → CLAUDE.md
   replace_block "$new" "$blk"
   rm -f "$blk"
   write_lock
-  echo "  done. commit the rename (git mv preserves history)."
+  echo "  done. commit the rename and the new $STUB_FILE together (git add $STUB_FILE)."
 }
 
 write_lock() { # lock = version + sha256 per managed file, from target bytes
@@ -303,14 +344,22 @@ check() {
     if [ "$(sha "$target/$rel")" = "$want" ]; then echo "  ok: $rel"
     else echo "  FAIL: $rel — sha mismatch (managed file edited locally; see distribution.md §8)"; fail=1; fi
   done < <(files_of managed)
-  if grep -q '<!-- context-standard:begin -->' "$target/$RULE_FILE" 2>/dev/null \
-    && grep -q '@docs/standard/agents-core.md' "$target/$RULE_FILE"; then
-    echo "  ok: $RULE_FILE sentinel + agents-core pointer"
+  resolve_rule
+  if has_sentinel "$target/$RULE" && grep -q '@docs/standard/agents-core.md' "$target/$RULE"; then
+    echo "  ok: $RULE sentinel + agents-core pointer"
   else
     echo "  FAIL: $RULE_FILE sentinel header or agents-core pointer missing"; fail=1
   fi
+  if [ "$LEGACY" = 1 ]; then
+    legacy_note
+  elif stub_ok; then
+    echo "  ok: $STUB_FILE imports AGENTS.md"
+  else
+    echo "  FAIL: $STUB_FILE missing or lacks the line '@AGENTS.md' — Claude Code then loads AGENTS.md"
+    echo "        only when no CLAUDE.md/CLAUDE.local.md sits in the repo or a parent dir (adopt.sh --update)"; fail=1
+  fi
   # L0: team-context key must be present and resolved (org/repo or none; unset fails).
-  team="$( [ -f "$target/$RULE_FILE" ] && read_fm "$target/$RULE_FILE" team-context || true )"
+  team="$( [ -f "$target/$RULE" ] && read_fm "$target/$RULE" team-context || true )"
   if [ "$team" = none ] || valid_team "$team"; then
     echo "  ok: team-context resolved ($team)"
   elif [ -z "$team" ] || [ "$team" = unset ]; then
@@ -324,8 +373,14 @@ check() {
 
 case "$mode" in
   seed)
+    resolve_rule
     files_of managed | while read -r rel; do sync_managed "$rel"; done
-    files_of seeded  | while read -r rel; do seed_seeded "$rel"; done
+    files_of seeded  | while read -r rel; do
+      # a v0.4 repo keeps its contract in CLAUDE.md: never seed a second one
+      if [ "$rel" = "$RULE_FILE" ] && [ "$LEGACY" = 1 ]; then echo "  skip: $RULE_FILE (contract is in $LEGACY_RULE_FILE)"; continue; fi
+      seed_seeded "$rel"
+    done
+    if [ "$LEGACY" = 1 ]; then legacy_note; else ensure_stub; fi
     write_lock; write_gitattributes
     echo "done. next:"
     echo "  1. fill {{PLACEHOLDERS}} in $RULE_FILE and docs/ (seeded files are yours)"
@@ -336,6 +391,7 @@ case "$mode" in
     ;;
   update)
     files_of managed | while read -r rel; do sync_managed "$rel"; done
+    resolve_rule
     files_of seeded  | while read -r rel; do
       [ "$rel" = "$RULE_FILE" ] && continue
       if [ ! -e "$target/$rel" ]; then echo "  copy (new in template): $rel"; put "$rel"
@@ -344,6 +400,7 @@ case "$mode" in
       fi
     done
     update_sentinel
+    if [ "$LEGACY" = 1 ]; then legacy_note; else ensure_stub; fi
     write_lock; write_gitattributes
     echo "done. review the diff, then commit (branch chore/context-standard-$VERSION suggested)."
     ;;
@@ -357,6 +414,7 @@ case "$mode" in
     fi
     files_of managed | while read -r rel; do sync_managed "$rel"; done
     files_of seeded  | while read -r rel; do echo "  OVERWRITE: $rel"; put "$rel"; done
+    files_of stub    | while read -r rel; do echo "  OVERWRITE: $rel"; put "$rel"; done
     write_lock; write_gitattributes
     echo "done (forced)."
     ;;

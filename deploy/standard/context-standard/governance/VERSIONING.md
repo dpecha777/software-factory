@@ -14,7 +14,7 @@ drift becomes a visible diff instead of silent rot.
 
 ## How a repo pins its version
 
-`CLAUDE.md` front-matter carries `context-standard: vX.Y`. `docs-lint` checks the field
+`AGENTS.md` front-matter carries `context-standard: vX.Y` (`CLAUDE.md` on a v0.4 repo). `docs-lint` checks the field
 exists and (at L2) that the major matches the current standard.
 
 The delivery mechanics per change class (auto-PR vs advisory vs tag move) are
@@ -24,7 +24,7 @@ specified in `distribution.md` §8 — this file only defines what MAJOR/MINOR *
 
 1. Propose the change as a PR against **this** repo. Non-trivial changes get an ADR in
    `governance/adr/` here (the standard eats its own dog food).
-2. Merge → bump `CHANGELOG.md` and the version stamped in `template/CLAUDE.md`.
+2. Merge → bump `CHANGELOG.md` and the version stamped in `template/AGENTS.md`.
 3. Teams resync: `./adopt.sh --update <repo>`. The script reports every file it would
    change; a human reviews the diff and commits.
 

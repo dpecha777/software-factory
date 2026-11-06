@@ -4,6 +4,25 @@ Versioned `vMAJOR.MINOR`. MAJOR = a change a repo must act on to stay conformant
 (new required file, moved path). MINOR = additive or clarifying (new optional
 convention, doc fixes). See `governance/VERSIONING.md`.
 
+## v0.5 — 2026-11-06
+
+A repo must act: the contract moves from `CLAUDE.md` to `AGENTS.md`, and `CLAUDE.md`
+becomes a stub (`adopt.sh --migrate-rule-file`). A v0.4 repo still passes `--check`,
+with a warning, until it migrates.
+
+- Rule file is `AGENTS.md` (template, MANIFEST, adopt.sh, STANDARD §2 and §4): every
+  agent tool reads it natively. `CLAUDE.md` is a new `stub` file class whose required
+  line is `@AGENTS.md`, because Claude Code loads `AGENTS.md` only when no
+  `CLAUDE.md`/`.claude/CLAUDE.md`/`CLAUDE.local.md` sits in the repo or a parent
+  directory (`~/.claude/CLAUDE.md` counts for every repo under `$HOME`).
+- adopt.sh: seed writes `AGENTS.md` + the stub; an existing `CLAUDE.md` without a
+  sentinel keeps its lines below the prepended import (was: left without a sentinel, so
+  `--set-team` refused). `--migrate-rule-file` now runs v0.4 `CLAUDE.md` → `AGENTS.md` +
+  stub; `--check` fails a v0.5 repo whose `CLAUDE.md` lacks `@AGENTS.md` and warns on a
+  v0.4 layout. `adopt.test.sh` pins all of it.
+- `docs-lint.yml` also triggers on `AGENTS.md` changes (managed file: its sha changes).
+- Seeded ADR 0001 describes the pointer topology (no in-repo store) and pins v0.5.
+
 ## v0.4 — 2026-08-18 (draft)
 
 MAJOR — a repo must act: rename AGENTS.md → CLAUDE.md and answer the
