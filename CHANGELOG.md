@@ -10,8 +10,13 @@ access on the billing project, no other non-OpenAI provider in Pi).
   team's ADR 0001 and replaced by a two-leg route when access lands.
 - `factory-reviewer-setup`: offers it as a third option and refuses to call the factory ready
   while it is unrecorded.
-- `check-reviewers.py`: an all-Codex panel prints `OPTIONAL reviewer panel` (it passed silently
-  before). Two new cases in `test_check_workstation.py`; the first fails against the previous checker.
+- `check-reviewers.py`: an explicit all-Codex panel prints `OPTIONAL reviewer panel  Codex-only
+  route`; an unset `CONSORT_REVIEWERS` prints that it is Consort's default, not a chosen route; and
+  legs that all land on one vendor (`codex,pi:openai-codex:...`) print `one vendor (openai)`. All
+  three passed silently before. Four new cases in `test_check_workstation.py`, each failing against
+  the previous checker.
+- The skill refuses to switch to Codex-only to get past a failing leg, or to record the shortcut
+  on the operator's behalf. Scaffold runbook G1-G3 gets the route's fail-closed command.
 
 ## 0.2.23 (2026-11-07)
 

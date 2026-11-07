@@ -115,9 +115,11 @@ before you install Google tooling.
 the billing project, no other non-OpenAI provider in Pi), run the panel with Codex alone:
 `CONSORT_REVIEWERS=codex`. Codex is still a different vendor from the Claude author, so the
 cross-vendor axis holds, and the panel still hard-fails when Codex is down. What it loses is the
-second reading: on the 2026-09-07 benchmark each leg caught defects the other missed. Name the
-shortcut in the team's ADR 0001 and switch to a two-leg route when access lands; the change is one
-settings key. Skip the Pi, gcloud and Gemini installs below. An agent-led deploy should load
+second reading: on the 2026-09-07 benchmark each leg caught defects the other missed. The person
+setting up the machine chooses it, names the shortcut in the team's ADR 0001, and switches to a
+two-leg route when access lands (one settings key). It is a starting route, never a fallback: a
+configured leg that fails is fixed or the gate stops. Skip the Pi, gcloud and Gemini installs
+below. An agent-led deploy should load
 [factory-reviewer-setup](../templates/skills/factory-reviewer-setup/SKILL.md) and stop for that
 choice.
 
