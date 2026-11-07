@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.24 (2026-11-07)
+
+A Codex-only reviewer route for teams that have Codex but no reachable second vendor (no Vertex
+access on the billing project, no other non-OpenAI provider in Pi).
+
+- `deploy/01-workstation-macos.md` §3: the route, its settings block, what it keeps (cross-vendor
+  axis, hard-fail when Codex is down) and what it loses (the second reading); it is named in the
+  team's ADR 0001 and replaced by a two-leg route when access lands.
+- `factory-reviewer-setup`: offers it as a third option and refuses to call the factory ready
+  while it is unrecorded.
+- `check-reviewers.py`: an all-Codex panel prints `OPTIONAL reviewer panel` (it passed silently
+  before). Two new cases in `test_check_workstation.py`; the first fails against the previous checker.
+
 ## 0.2.23 (2026-11-07)
 
 `check-project.sh` stops reporting layout differences as gaps. Measured before and after on four

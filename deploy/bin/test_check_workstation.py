@@ -802,6 +802,27 @@ exit 1
         self.assertIn("SKIP     gcloud", out)
         self.assertIn("SKIP     env CONSORT_GCP_PROJECT", out)
 
+    def test_codex_only_route_is_flagged_not_failed(self) -> None:
+        self.fx.reviewer_stubs("codex")
+        proc = self.fx.run({"CONSORT_REVIEWERS": "codex", "CONSORT_CODEX_BACKEND": "exec"})
+        out = self._out(proc)
+        self.assertEqual(proc.returncode, 0, out)
+        self.assertIn("OPTIONAL reviewer panel", out)
+        self.assertIn("Codex-only route", out)
+        self.assertIn("SKIP     gcloud", out)
+
+    def test_two_vendor_panel_has_no_codex_only_line(self) -> None:
+        self.fx.reviewer_stubs("codex", "pi", "gcloud", "rg", "fd")
+        self.fx.adc()
+        proc = self.fx.run(
+            {
+                "CONSORT_REVIEWERS": "codex,pi:google-vertex",
+                "CONSORT_GCP_PROJECT": "example-project",
+                "CONSORT_CODEX_BACKEND": "exec",
+            }
+        )
+        self.assertNotIn("Codex-only route", self._out(proc))
+
     def test_settings_only_is_inactive(self) -> None:
         self.fx.reviewer_stubs("codex")
         settings = json.loads((self.fx.cfg / "settings.json").read_text())

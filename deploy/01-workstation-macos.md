@@ -13,7 +13,8 @@ think is done. The lines it prints are the list of what is not.
 
 Pick the reviewer route in section 3 before you install Google tooling. The reference route is
 Codex plus Gemini through Pi on Vertex. An existing local Pi provider and model is a first-class
-alternative. It does not need gcloud. Order matters in two other places only. Install the memory
+alternative. It does not need gcloud. A team with Codex but no reachable second vendor runs the
+Codex-only route and records it as a named shortcut. Order matters in two other places only. Install the memory
 engine before the agent hooks that call it, and install Codex before the consort plugin that
 wraps it. Everything else can be installed in any order.
 
@@ -105,10 +106,18 @@ read-only. Nothing in this section is per project.
 
 ## 3. Second and third vendor: the verify gate's reviewers
 
-The gate is a two-leg panel. Both legs are required. The panel hard-fails if either is
-unreachable ([docs/06](../docs/06-verify-gate.md)). Leg one is Codex. Leg two is either Gemini
-through Pi on Vertex, or an existing local Pi provider and model. Choose one route before you
-install Google tooling. An agent-led deploy should load
+The reference gate is a two-leg panel. Both configured legs are required. The panel hard-fails
+if either is unreachable ([docs/06](../docs/06-verify-gate.md)). Leg one is Codex. Leg two is
+either Gemini through Pi on Vertex, or an existing local Pi provider and model. Choose one route
+before you install Google tooling.
+
+**Codex-only route.** When no second vendor is reachable from this machine (no Vertex access on
+the billing project, no other non-OpenAI provider in Pi), run the panel with Codex alone:
+`CONSORT_REVIEWERS=codex`. Codex is still a different vendor from the Claude author, so the
+cross-vendor axis holds, and the panel still hard-fails when Codex is down. What it loses is the
+second reading: on the 2026-09-07 benchmark each leg caught defects the other missed. Name the
+shortcut in the team's ADR 0001 and switch to a two-leg route when access lands; the change is one
+settings key. Skip the Pi, gcloud and Gemini installs below. An agent-led deploy should load
 [factory-reviewer-setup](../templates/skills/factory-reviewer-setup/SKILL.md) and stop for that
 choice.
 
@@ -300,10 +309,24 @@ auth stay in the user environment:
 }
 ```
 
-With `CLAUDE_CONFIG_DIR` set, add `"CONSORT_CODEX_BACKEND": "exec"` to either block (section 3
+Codex-only route (no Pi, no Google keys):
+
+```json
+{
+  "env": {
+    "CONSORT_REVIEWERS": "codex",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-5-5"
+  },
+  "modelOverrides": { "claude-opus-5": "claude-opus-5-5" },
+  "statusLine": { "type": "command", "command": "<what claude-hud:setup wrote>" }
+}
+```
+
+With `CLAUDE_CONFIG_DIR` set, add `"CONSORT_CODEX_BACKEND": "exec"` to any of these blocks (section 3
 says why).
 
-`CONSORT_REVIEWERS` makes the gate a two-leg panel instead of whichever backend is reachable.
+`CONSORT_REVIEWERS` fixes the panel instead of leaving it to whichever backend is reachable; the
+workstation checker prints `OPTIONAL reviewer panel` for the Codex-only route.
 The model pin is the routing decision in
 [adr/0015](../adr/0015-every-agent-station-runs-the-top-tier.md): every station runs the top
 tier, and both knobs map the bare alias to the pinned release so an earlier one is never served.

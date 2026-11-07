@@ -631,6 +631,13 @@ def check_reviewers(environment: Mapping[str, str], consort_root: str) -> List[R
         OK,
         reviewer_contract_line(env, defaulting).detail,
     )
+    if all(leg.backend == "codex" for leg in legs):
+        # A legitimate route (still a second vendor to the Claude author), but one reading, not two.
+        report.add(
+            "reviewer panel",
+            OPTIONAL,
+            "Codex-only route: one vendor; name it in the team's ADR 0001 and add a second leg when one is reachable",
+        )
     root_ok, root_detail = consort_root_ok(consort_root)
     if root_ok:
         report.add("consort checkout", OK, os.path.basename(os.path.abspath(consort_root)))
