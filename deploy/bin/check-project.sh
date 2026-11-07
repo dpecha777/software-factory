@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Scaffold check for a code repository wired into the software-factory loop. Run from
 # anywhere inside the repo. One line per artifact, exit 1 if a REQUIRED one is absent.
-# Read-only. Pair with deploy/02-scaffold-a-project.md, which says how each is created.
+# Read-only, except that it runs the repo's own cleat gate. Pair with deploy/02-scaffold-a-project.md, which says how each is created.
 #
 # Accepted layouts. The factory's reference scaffold is checked as written, but an artifact
 # that a working repo keeps elsewhere counts where it really lives:
@@ -25,13 +25,19 @@ f()  { [ -f "$1" ] && ok "$1" "${2:-}" || miss "$1" "${2:-}"; }
 fo() { [ -f "$1" ] && ok "$1" "${2:-}" || warn "$1" "${2:-}"; }
 g()  { grep -qE "$2" "$1" 2>/dev/null && ok "$1: $3" || miss "$1: $3"; }
 ver() { sed -n 's/^context-standard: *\(v[0-9][0-9.]*\).*/\1/p' "$1" 2>/dev/null | head -1; }
-# First read-only store path in the memspec binding files (block-scoped: a path counts only
-# when its own list entry says writable: false).
-ro_store() { awk '/^[[:space:]]*-[[:space:]]/{p=""} /^[[:space:]]*-?[[:space:]]*path:/{sub(/.*path:[[:space:]]*/,""); p=$0}
-                  /^[[:space:]]*writable:[[:space:]]*false/{ if (p!="") { print p; exit } }' "$@" 2>/dev/null; }
-# Every read-only store path in one binding file.
-ro_store_all() { awk '/^[[:space:]]*-[[:space:]]/{p=""} /^[[:space:]]*-?[[:space:]]*path:/{sub(/.*path:[[:space:]]*/,""); p=$0}
-                      /^[[:space:]]*writable:[[:space:]]*false/{ if (p!="") print p }' "$@" 2>/dev/null; }
+# Read-only store paths in the memspec binding files, in either key order within a list entry
+# (a path counts only when its own entry says writable: false). Missing files are skipped, since
+# awk stops at the first file it cannot open.
+ro_store_all() {
+  local fs=(); for x in "$@"; do [ -f "$x" ] && fs+=("$x"); done
+  [ ${#fs[@]} -gt 0 ] || return 0
+  awk 'function emit() { if (p != "" && w) print p; p = ""; w = 0 }
+       /^[[:space:]]*-[[:space:]]/ { emit() }
+       /^[[:space:]]*-?[[:space:]]*path:/ { v = $0; sub(/.*path:[[:space:]]*/, "", v); p = v }
+       /^[[:space:]]*-?[[:space:]]*writable:[[:space:]]*false/ { w = 1 }
+       END { emit() }' "${fs[@]}" 2>/dev/null
+}
+ro_store() { ro_store_all "$@" | head -1; }
 GH=0; command -v gh >/dev/null 2>&1 && gh repo view >/dev/null 2>&1 && GH=1
 
 echo "== knowledge plane (context standard, memory binding)"
@@ -45,8 +51,9 @@ g "$RF" '<!-- context-standard:begin -->' "managed header (adopt.sh ran)"
 binding="$(ro_store .memspec/config.yaml .memspec.yaml)"
 if grep -qE 'team-context: [A-Za-z0-9._-]+/[A-Za-z0-9._-]+' "$RF" 2>/dev/null; then
   ok "$RF: team-context wired to an org/repo"
-elif ! grep -q '^team-context:' "$RF" 2>/dev/null && [ -n "$binding" ]; then
-  ok "team context bound" "read-only store $binding (header predates the team-context field)"
+elif hv="$(ver "$RF")"; [ -n "$hv" ] && [ "$hv" != v0.5 ] && [ "$(printf '%s\n' "$hv" v0.5 | sort -V | head -1)" = "$hv" ] \
+     && ! grep -q '^team-context:' "$RF" && [ -n "$binding" ]; then
+  ok "team context bound" "read-only store $binding ($hv header predates the team-context field)"
 else
   miss "$RF: team-context wired to an org/repo" "adopt.sh --set-team <org>/<team>-team-context ."
 fi
@@ -75,7 +82,7 @@ if command -v memspec >/dev/null 2>&1; then
   done < <(memspec stores 2>/dev/null)
   if [ -n "$live" ]; then ok "memspec stores" "$live"
   elif [ -z "$bound" ]; then miss "memspec stores" "this repo binds no read-only team store (.memspec/config.yaml)"
-  else miss "memspec stores" "none of the bound team stores resolves here: $(echo $bound)"; fi
+  else miss "memspec stores" "none of the bound team stores resolves here: $(printf '%s ' "$bound" | tr '\n' ' ')"; fi
 fi
 [ -d docs/adr ] && ok "docs/adr/" "$(find docs/adr -maxdepth 1 -name "[0-9]*.md" | wc -l | tr -d " ") records" || miss "docs/adr/" "mine-decision-records"
 [ -d .claude/rules ] && ok ".claude/rules/" "$(ls .claude/rules | wc -l | tr -d ' ') rule files" || warn ".claude/rules/" "path-scoped rules (17-onboarding §3)"
@@ -86,6 +93,7 @@ ENOLA=0; [ -f enola-intent.yaml ] && ENOLA=1
 if [ $CLEAT -eq 1 ]; then
   f quality.json "cleat config"
   f quality/bin/gate.py "cleat vendored (attach.py)"
+  # Runs the repo's own gate: this line executes repo code, so run the checker only in a repo you trust.
   if [ -f quality/bin/gate.py ]; then python3 quality/bin/gate.py >/dev/null 2>&1 && ok "cleat gate" "green" || miss "cleat gate" "red: run python3 quality/bin/gate.py"; fi
   git check-ignore -q quality/bin/gate.py && miss "quality/bin tracked" "a bin/ ignore rule hides the gate from every worktree" || ok "quality/bin tracked"
 else
@@ -107,7 +115,7 @@ if [ $CLEAT -eq 1 ] || [ $ENOLA -eq 1 ]; then
   [ $CLEAT -eq 1 ] && g .claude/settings.json 'gate.py --hook' "Stop cleat hook"
   [ $ENOLA -eq 1 ] && g .claude/settings.json 'enola-stop.sh' "Stop enola hook"
 fi
-if [ -f .claude/settings.json ] && python3 -c 'import json,sys; sys.exit(0 if json.load(open(".claude/settings.json")).get("enabledPlugins",{}).get("chisle@chisle") is True else 1)' 2>/dev/null; then
+if [ -f .claude/settings.json ] && python3 -I -c 'import json,sys; sys.exit(0 if json.load(open(".claude/settings.json")).get("enabledPlugins",{}).get("chisle@chisle") is True else 1)' 2>/dev/null; then
   ok "chisle on for this project" "sensor 2, enabledPlugins in the tracked settings"
 else
   miss "chisle on for this project" "enabledPlugins chisle@chisle: true in .claude/settings.json (the install is user scope and off there)"
@@ -117,7 +125,10 @@ fo .claude/rules/ripwire.md "orientation-map rule"
 
 echo "== git hooks and merge authority"
 hp="$(git config core.hooksPath || true)"
-if [ -n "$hp" ]; then ok "core.hooksPath" "$hp"; HD="${hp%/}"; else miss "core.hooksPath" "git config core.hooksPath scripts/git-hooks"; HD=scripts/git-hooks; fi
+if [ -n "$hp" ]; then
+  HD="${hp%/}"
+  case "$hp" in /*|~*) miss "core.hooksPath" "$hp is absolute: every worktree runs that checkout's hooks; use a repo-relative path" ;; *) ok "core.hooksPath" "$hp" ;; esac
+else miss "core.hooksPath" "git config core.hooksPath scripts/git-hooks"; HD=scripts/git-hooks; fi
 [ $CLEAT -eq 1 ] && f "$HD/pre-push" "cleat ratchets + receipts before push"
 fo "$HD/commit-msg" "provenance trailer"
 fo "$HD/post-commit" "memspec reconciliation"
@@ -125,19 +136,16 @@ if git log -1 --format=%B | grep -qE '^Provenance: (human|agent:)'; then ok "pro
 # The factory gates a merge on trivy plus every installed sensor; an absent sensor is reported once above.
 NEED="trivy"; [ $CLEAT -eq 1 ] && NEED="cleat $NEED"; [ $ENOLA -eq 1 ] && NEED="$NEED enola"
 if [ $GH -eq 1 ]; then
-  # Required status checks: active BRANCH rulesets (repo and inherited org ones), else classic protection.
-  ctx="$(for id in $(gh api 'repos/{owner}/{repo}/rulesets' --jq '.[] | select(.enforcement=="active" and .target=="branch") | .id' 2>/dev/null); do
-           gh api "repos/{owner}/{repo}/rulesets/$id" --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null; done | sort -u | tr '\n' ' ')"
-  src="branch ruleset"
-  if [ -z "$ctx" ]; then
-    # Classic branch protection on the default branch carries required checks too.
-    db="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null)"
-    ctx="$(gh api "repos/{owner}/{repo}/branches/${db:-main}/protection" --jq '.required_status_checks.contexts[]' 2>/dev/null)" || ctx=""   # a 404 body lands on stdout
-    ctx="$(printf '%s\n' "$ctx" | sed '/^$/d' | sort -u | tr '\n' ' ')"
-    [ -n "$ctx" ] && src="branch protection ($db)"
-  fi
+  # Required status checks that apply to the default branch: the rules API resolves repo and org
+  # rulesets against the branch (a ruleset for release/* does not count), plus classic protection.
+  # Every call is exit-checked: on a 4xx gh prints the error body to stdout.
+  db="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name 2>/dev/null)" || db=""; db="${db:-main}"
+  rs="$(gh api "repos/{owner}/{repo}/rules/branches/$db" --jq '.[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context' 2>/dev/null)" || rs=""
+  bp="$(gh api "repos/{owner}/{repo}/branches/$db/protection" --jq '.required_status_checks.contexts[]' 2>/dev/null)" || bp=""
+  src=""; [ -n "$rs" ] && src="branch ruleset"; [ -n "$bp" ] && src="${src:+$src + }branch protection"
+  ctx="$(printf '%s\n%s\n' "$rs" "$bp" | sed '/^$/d' | sort -u | tr '\n' ' ')"
   if [ -n "$ctx" ]; then
-    ok "$src" "required checks: $ctx"
+    ok "$src ($db)" "required checks: $ctx"
     missing_ctx=""; for c in $NEED; do case " $ctx " in *" $c "*) ;; *) missing_ctx="$missing_ctx $c" ;; esac; done
     [ -n "$missing_ctx" ] && miss "required gate checks" "required checks lack:$missing_ctx"
   else miss "branch ruleset" "no active branch ruleset or protection with required status checks: gh api repos/{owner}/{repo}/rulesets --input deploy/templates/github/ruleset.json"; fi
@@ -169,7 +177,7 @@ else
       gh variable list 2>/dev/null | grep -q '^JIRA_BASE_URL' && ok "variable JIRA_BASE_URL" || miss "variable JIRA_BASE_URL" "gh variable set JIRA_BASE_URL"
       gh variable list 2>/dev/null | grep -q '^JIRA_PROJECT_KEY' && ok "variable JIRA_PROJECT_KEY" || warn "variable JIRA_PROJECT_KEY" "unset = the script's default project key"
     fi
-  elif [ -f .jira-sync.toml ]; then
+  elif git ls-files --error-unmatch .jira-sync.toml >/dev/null 2>&1; then
     if grep -qE '^base_url *=' .jira-sync.toml && grep -qE '^project *=' .jira-sync.toml; then
       ok "ledger driver" "local: .jira-sync.toml, agents walk tickets with the script (credentials stay personal)"
     else miss "ledger driver" ".jira-sync.toml lacks base_url or project"; fi

@@ -5,7 +5,7 @@
 set -u
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHECK="$HERE/check-project.sh"
-T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+T="$(mktemp -d)" && [ -d "$T" ] || { echo "mktemp failed" >&2; exit 1; }; trap 'rm -rf "$T"' EXIT
 pass=0; failn=0
 expect() { # expect <name> <output-file> <regex>   (line must appear)
   if grep -qE "$3" "$2"; then pass=$((pass+1)); else failn=$((failn+1)); echo "FAIL $1: no line matching /$3/"; sed 's/^/    /' "$2"; fi; }
@@ -20,8 +20,7 @@ cat > "$T/bin/gh" <<'GH'
 case "$*" in
   "repo view --json defaultBranchRef"*) echo main ;;
   "repo view"*) exit 0 ;;
-  *"/rulesets --jq"*) [ "$GH_MODE" = ruleset ] && echo 7 ;;
-  *"/rulesets/7"*) printf 'cleat\nenola\ntrivy\n' ;;
+  *"/rules/branches/main"*) if [ "$GH_MODE" = ruleset ]; then printf 'cleat\nenola\ntrivy\n'; else echo '{"message":"Not Found","status":"404"}'; exit 1; fi ;;
   *"/protection"*) if [ "$GH_MODE" = protection ]; then printf 'test\ntrivy\n'; else echo '{"message":"Not Found","status":"404"}'; exit 1; fi ;;
   "pr list"*) echo abc123 ;;
   *"commits/abc123/status"*) [ "$GH_MODE" = poller ] && echo pr-ticket-key ;;
@@ -59,7 +58,9 @@ git config core.hooksPath .githooks; : > .githooks/pre-push
 run "$T/r1" "$T/o1"
 expect hooks-dir "$T/o1" '^OK +\.githooks/pre-push'
 reject hooks-dir-noscripts "$T/o1" 'scripts/git-hooks/pre-push'
-rm .githooks/pre-push; run "$T/r1" "$T/o1n"
+git config core.hooksPath "$T/r1/.githooks"; run "$T/r1" "$T/o1a"
+expect hooks-absolute-neg "$T/o1a" '^MISSING +core\.hooksPath +.* is absolute'
+git config core.hooksPath .githooks; rm .githooks/pre-push; run "$T/r1" "$T/o1n"
 expect hooks-dir-neg "$T/o1n" '^MISSING +\.githooks/pre-push'
 
 # 2. an absent sensor reports once, without its files, hooks or CI job.
@@ -76,9 +77,16 @@ expect enola-ignored "$T/o3" '^OK +\.gitignore ignores \.enola/'
 expect enola-ignored-neg "$T/o3n" '^MISSING +\.gitignore ignores \.enola/'
 
 # 4. team context: a header without the field may bind through memspec; "unset" may not.
-repo "$T/r4"; sed -i.bak '/^team-context:/d' AGENTS.md && rm AGENTS.md.bak; run "$T/r4" "$T/o4"
+repo "$T/r4"; sed -i.bak '/^team-context:/d' AGENTS.md && rm AGENTS.md.bak; run "$T/r4" "$T/o4v5"
+expect team-v05-nofield-neg "$T/o4v5" '^MISSING +AGENTS.md: team-context wired'
+sed -i.bak 's/^context-standard: v0.5$/context-standard: v0.3/' AGENTS.md && rm AGENTS.md.bak; run "$T/r4" "$T/o4"
 expect team-binding "$T/o4" '^OK +team context bound +read-only store '"$T"'/ctx/.memspec'
-sed -i.bak 's/^context-standard: v0.5$/context-standard: v0.5\nteam-context: unset/' AGENTS.md && rm AGENTS.md.bak; run "$T/r4" "$T/o4n"
+# key order inside a store entry, and only .memspec.yaml present
+printf 'stores:\n  - name: team\n    writable: false\n    path: /flipped/.memspec\n' > .memspec/config.yaml; run "$T/r4" "$T/o4k"
+expect team-binding-keyorder "$T/o4k" '^OK +team context bound +read-only store /flipped/.memspec'
+rm .memspec/config.yaml; run "$T/r4" "$T/o4p"
+expect team-binding-pointer-only "$T/o4p" '^OK +team context bound +read-only store '"$T"'/ctx/.memspec'
+sed -i.bak 's/^context-standard: v0.3$/context-standard: v0.5\nteam-context: unset/' AGENTS.md && rm AGENTS.md.bak; run "$T/r4" "$T/o4n"
 expect team-unset-neg "$T/o4n" '^MISSING +AGENTS.md: team-context wired'
 
 # 5. memspec stores: OK only for a store this repo binds (no binding = user config, proves nothing).
@@ -101,8 +109,11 @@ run "$T/r7" "$T/o7"
 expect ledger-script "$T/o7" '^OK +jira_sync\.py +scripts/jira_sync\.py'
 expect ledger-tests "$T/o7" '^OK +jira_sync tests'
 expect ledger-local "$T/o7" '^OK +ledger driver +local'
-printf '[jira]\nbase_url = "https://x"\n' > .jira-sync.toml; run "$T/r7" "$T/o7n"
+printf '[jira]\nbase_url = "https://x"\n' > .jira-sync.toml; git commit -qam t; run "$T/r7" "$T/o7n"
 expect ledger-local-neg "$T/o7n" '^MISSING +ledger driver +\.jira-sync\.toml lacks'
+repo "$T/r7u"; mkdir -p scripts && : > scripts/jira_sync.py; printf '[jira]\nbase_url = "https://x"\nproject = "ACME"\n' > .jira-sync.toml
+run "$T/r7u" "$T/o7u"
+expect ledger-untracked-neg "$T/o7u" '^MISSING +ledger driver'
 
 # 8. GitHub-side: poller proven by its status; classic protection read when no ruleset; a 404 body
 #    never reads as a required check.
@@ -118,7 +129,7 @@ GH_MODE=protection run "$T/r8" "$T/o8p"
 expect protection "$T/o8p" '^OK +branch protection \(main\) +required checks: test trivy'
 reject protection-trivy-ok "$T/o8p" 'required checks lack'
 GH_MODE=ruleset run "$T/r8" "$T/o8r"
-expect ruleset "$T/o8r" '^OK +branch ruleset +required checks: cleat enola trivy'
+expect ruleset "$T/o8r" '^OK +branch ruleset \(main\) +required checks: cleat enola trivy'
 
 echo "check-project tests: $pass passed, $failn failed"
 [ $failn -eq 0 ]
