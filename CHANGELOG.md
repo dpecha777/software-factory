@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.24 (2026-11-07)
+
+A Codex-only reviewer route for teams that have Codex but no reachable second vendor (no Vertex
+access on the billing project, no other non-OpenAI provider in Pi).
+
+- `deploy/01-workstation-macos.md` §3: the route, its settings block, what it keeps (cross-vendor
+  axis, hard-fail when Codex is down) and what it loses (the second reading); it is named in the
+  team's ADR 0001 and replaced by a two-leg route when access lands.
+- `factory-reviewer-setup`: offers it as a third option and refuses to call the factory ready
+  while it is unrecorded.
+- `check-reviewers.py`: an explicit all-Codex panel prints `OPTIONAL reviewer panel  Codex-only
+  route`; an unset `CONSORT_REVIEWERS` prints that it is Consort's default, not a chosen route; and
+  legs that all land on one vendor (`codex,pi:openai-codex:...`) print `one vendor (openai)`. All
+  three passed silently before. Four new cases in `test_check_workstation.py`, each failing against
+  the previous checker.
+- The skill refuses to switch to Codex-only to get past a failing leg, or to record the shortcut
+  on the operator's behalf. Scaffold runbook G1-G3 gets the route's fail-closed command.
+
 ## 0.2.23 (2026-11-07)
 
 `check-project.sh` stops reporting layout differences as gaps. Measured before and after on four

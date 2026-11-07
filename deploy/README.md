@@ -16,7 +16,7 @@ a named shortcut in the team's ADR 0001 the day it is skipped.
 | An engineer setting up your own Mac | [01-workstation-macos.md](01-workstation-macos.md) | `bin/check-workstation.sh` |
 | An engineer setting up a PM's Mac | [01-workstation-macos.md](01-workstation-macos.md), the PM profile section | `bin/check-workstation.sh --pm` |
 | An agent (or an engineer driving one) wiring a code repository, its team-context repo, the ledger and the PM workspace | [02-scaffold-a-project.md](02-scaffold-a-project.md) | `bin/check-project.sh` in the code repo |
-| An agent choosing Vertex or an existing local Pi reviewer route during factory deploy | [factory-reviewer-setup](../templates/skills/factory-reviewer-setup/SKILL.md) | then `bin/check-workstation.sh` in the same process environment the panel will inherit |
+| An agent choosing the Vertex, existing local Pi or Codex-only reviewer route during factory deploy | [factory-reviewer-setup](../templates/skills/factory-reviewer-setup/SKILL.md) | then `bin/check-workstation.sh` in the same process environment the panel will inherit |
 
 The scaffold runbook is written to be handed to an agent as its brief: it names the inputs to
 collect from the human first, then the legs in order, each with the command, the check and the

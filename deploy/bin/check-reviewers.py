@@ -346,6 +346,20 @@ def effective_pi_provider(base: Mapping[str, str], leg: Leg) -> str:
     return nonempty(merged, "CONSORT_PI_PROVIDER") or "openai-codex"
 
 
+def leg_vendor(base: Mapping[str, str], leg: Leg) -> str:
+    """The model vendor behind a leg, so that two legs on one vendor never read as a panel."""
+    if leg.backend == "codex":
+        return "openai"
+    if leg.backend == "gemini":
+        return "google"
+    provider = effective_pi_provider(base, leg).lower()
+    if provider.startswith("openai"):
+        return "openai"
+    if provider.startswith("google"):
+        return "google"
+    return provider
+
+
 def selected_google_credential(env: Mapping[str, str], cwd: str) -> Tuple[str, str]:
     consort = nonempty(env, "CONSORT_GCP_CREDENTIALS")
     if consort:
@@ -631,6 +645,26 @@ def check_reviewers(environment: Mapping[str, str], consort_root: str) -> List[R
         OK,
         reviewer_contract_line(env, defaulting).detail,
     )
+    vendors = {leg_vendor(env, leg) for leg in legs}
+    if defaulting:
+        report.add(
+            "reviewer panel",
+            OPTIONAL,
+            "CONSORT_REVIEWERS unset: Consort's default Codex, not a chosen route; set it explicitly",
+        )
+    elif len(vendors) == 1 and all(leg.backend == "codex" for leg in legs):
+        # A legitimate route (still a second vendor to the Claude author), but one reading, not two.
+        report.add(
+            "reviewer panel",
+            OPTIONAL,
+            "Codex-only route: one vendor; name it in the team's ADR 0001 and add a second leg when one is reachable",
+        )
+    elif len(vendors) == 1:
+        report.add(
+            "reviewer panel",
+            OPTIONAL,
+            f"one vendor ({next(iter(vendors))}) across every leg: not a two-leg panel",
+        )
     root_ok, root_detail = consort_root_ok(consort_root)
     if root_ok:
         report.add("consort checkout", OK, os.path.basename(os.path.abspath(consort_root)))

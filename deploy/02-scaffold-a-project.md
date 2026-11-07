@@ -45,7 +45,7 @@ whose input is blank.
 | PM workspace location and the PM's machine | `~/git/<product>-pm` | M0 |
 | Bot identity: may a GitHub App be created on the org (needs an admin)? | `kvart-factory`, contents + pull-requests write | G6, S2 |
 | Supervision level for the first cycles | interactive on the operator's machine | P5 |
-| Reviewer route | reference Vertex, or existing local Pi with explicit provider and model ids | G1 to G3, factory-reviewer-setup |
+| Reviewer route | reference Vertex, existing local Pi with explicit provider and model ids, or Codex-only (named in ADR 0001) | G1 to G3, factory-reviewer-setup |
 | Consort root the caller will invoke | `~/git/consort` at `5f68ef6`, or the installed plugin scripts directory | G1 to G3 |
 | Caller that will run the panel | a Claude session that inherits user-scope env, or a shell with the same exports | G1 to G3 |
 
@@ -282,8 +282,17 @@ bash "$CONSORT_ROOT/scripts/consort-scan.sh" .
 CONSORT_REVIEWERS='codex,pi:<provider-id>:this-model-does-not-exist' bash "$CONSORT_ROOT/scripts/consort-panel.sh" origin/main; echo "exit=$?"
 ```
 
-Check. The first run produces two findings files with one `[label] started` line each and a
-wall-clock proportional to the diff. The fail-closed run exits 3 (a syntactically valid leg
+Codex-only route (chosen by the operator at setup and named in ADR 0001; never a fallback for a
+failing leg):
+
+```
+bash "$CONSORT_ROOT/scripts/consort-panel.sh" origin/main
+bash "$CONSORT_ROOT/scripts/consort-scan.sh" .
+CONSORT_REVIEWERS=codex:this-model-does-not-exist bash "$CONSORT_ROOT/scripts/consort-panel.sh" origin/main; echo "exit=$?"
+```
+
+Check. The first run produces one findings file per configured leg (two on a two-leg route, one
+on Codex-only), each with one `[label] started` line, and a wall-clock proportional to the diff. The fail-closed run exits 3 (a syntactically valid leg
 failed at runtime). Exit 2 for malformed configuration is not that test. The gate must not
 return 0 with one leg dropped. Then the blind security side-pass. Spawn consort's
 `agents/security-reviewer` brief in a fresh session with no context from this one, on the same
