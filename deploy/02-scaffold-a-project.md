@@ -402,6 +402,14 @@ gh api repos/<org>/<repo>/rulesets --jq '.[].enforcement'   # active
 gh pr list -R <org>/<team>-team-context --state open        # nothing left unmerged from Day 0
 ```
 
+`check-project.sh` accepts the layouts working brownfield repos already use, so a MISSING line is
+a real gap: git hooks wherever `core.hooksPath` points, a team store bound through memspec when a
+pre-v0.5 header has no `team-context` field, required checks from a ruleset or classic branch
+protection, and a ledger run from CI, from a tracked `.jira-sync.toml` with the script, or from
+an external poller (proven by `pr-ticket-key` on the last merged PR). A sensor that is not
+installed is one line, not one per file, hook and job it owns. Fixtures:
+`bash $SF/deploy/bin/test_check_project.sh`.
+
 ## R. The run record
 
 Write `docs/factory-setup-<date>.md` in the team-context repo (through a PR), one row per leg

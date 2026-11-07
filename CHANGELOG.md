@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.2.23 (2026-11-07)
+
+`check-project.sh` stops reporting layout differences as gaps. Measured before and after on four
+repos: the reference repo 3 MISSING to 0, two brownfield repos 23 and 24 to 9 each, a fresh
+adoption 23 to 13; every remaining line is a real gap.
+
+- Git hooks are looked up in the `core.hooksPath` directory, not only `scripts/git-hooks`; an
+  absolute `core.hooksPath` fails (every worktree would run the main checkout's hooks, docs/13).
+- A pre-v0.5 header without a `team-context` field passes when the memspec binding names a
+  read-only store (either key order in the entry; `.memspec.yaml` alone is enough); a v0.5 header
+  must carry the field; `team-context: unset` still fails. The standard version is one OPTIONAL line
+  (`v0.3, current v0.5`).
+- `memspec stores` passes only for a store this repo's `.memspec/config.yaml` binds. Before, a repo
+  with no binding passed on whatever the user's own config listed.
+- `.gitignore ignores .enola/` checks the directory form, so a fresh checkout without a baseline
+  no longer fails (the reference repo's false MISSING).
+- A sensor that is not installed (cleat, enola) is one MISSING line instead of one per file, hook,
+  pre-push and CI job; the required gate checks and jobs are trivy plus the installed sensors.
+- Required checks are the ones that apply to the default branch: the rules-for-branch API (repo
+  and org rulesets, so a `release/*` ruleset no longer counts for `main`) plus classic protection.
+  Every `gh api` call is exit-checked, since gh prints a 4xx body to stdout.
+- Ledger: `jira_sync.py` in `scripts/ci/` or `scripts/`; tests anywhere tracked; the driver is the
+  CI workflow (secrets and variables checked), a tracked `.jira-sync.toml`, or an external poller,
+  proven like the ticket-key gate by the `pr-ticket-key` status on the last merged PR.
+- The chisle probe runs `python3 -I`, so a `json.py` in the checked repo is not imported; the header
+  says the checker runs the repo's own cleat gate.
+- New `deploy/bin/test_check_project.sh`, 33 fixture cases with stubbed `gh` and `memspec`;
+  22 of the first 28 fail against the previous checker, and every new guard was mutation-tested.
+
 ## 0.2.22 (2026-11-06)
 
 The repo contract moves to `AGENTS.md`, which every agent tool reads, behind a `CLAUDE.md` stub
