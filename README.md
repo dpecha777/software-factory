@@ -169,7 +169,7 @@ only real control is branch protection. See [06-verify-gate](docs/06-verify-gate
 13. [Adoption playbook](docs/12-adoption-playbook.md): turn 0 to turn N for a healthy repo, a legacy core, a solo owner, an organisation
 14. [Failure catalogue](docs/13-failure-catalogue.md): every trap that cost an hour, with its fix
 15. [PM surface](docs/14-pm-surface.md): the PM workspace, its skill catalogue, the readiness rubric, what the program design note needs from the ticket, the intake-to-ticket pipeline
-16. [Design system](docs/15-design-system.md): tokens, patterns, components and divergences as a knowledge-plane layer
+16. [Design system](docs/15-design-system.md): tokens, patterns, components and divergences as a knowledge-plane layer, and the design-system repo as a repo in the loop
 17. [Inventory](docs/16-inventory.md): every mechanism mapped to the tool or template that provides it, and what an adopter without a standard must build
 18. [Onboarding a repository](docs/17-onboarding.md): the Day 1 runbook, retro-generated specs, mined decision records, the team-context repo, the memory move
 19. [Flightlist](docs/18-flightlist.md): the tickable setup sequence for the next project, one mechanical check and one evidence pointer per leg

@@ -35,7 +35,7 @@ whose input is blank.
 
 | Input | Example from the reference implementation | Used by |
 |---|---|---|
-| Code repository (org/repo, default branch) | `siimvene/kvart`, `main` | everything |
+| Code repository (org/repo, default branch); one run per repo, design-system repos included | `siimvene/kvart`, `main` | everything |
 | Team-context repository name (org/repo); create it, or it exists | `siimvene/kvart-team-context` | D0.1, D0.3, D0.5 |
 | Code owner (GitHub handle or team) for `specs/**` and `.memspec/**` | the owner | D0.1, D0.2 |
 | Business-truth reviewer for the spec and ADR candidate tables | the owner, in the PM role | D1 (docs/17) |
