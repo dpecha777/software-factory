@@ -32,6 +32,12 @@ Which layer it sits in: the team layer. It describes one product across its repo
 by agents and merged by the code owner, and code repos bind to it rather than carry it. Same
 topology as the spec store and the memory store.
 
+That is the shape kvart has: the design system is derived from the code and the code is the only
+thing that ships. When the design system is its own repository with its own commits (a package
+the product repos install, a home for design-tool exports a product repo reads, a structural
+catalogue), it is a repo in the loop as well as a knowledge layer. See
+[the design-system repo in the loop](#the-design-system-repo-in-the-loop).
+
 ## The rule that makes it true rather than aspirational
 
 **A token that no code reads is not a standard, it is a suggestion.**
@@ -190,6 +196,73 @@ piece: the values are already in a structured file with named source paths, so t
 comparison, not an inference. Until it exists, this layer holds one gate and 27 conventions, and
 the honest description is a knowledge artifact with a single ratchet attached, not an enforced
 system.
+
+## The design-system repo in the loop
+
+A design-system repository is part of the flywheel. Every repository whose changes reach a
+product gets the same loop as the product repo: a ticket at the head of the work, the context
+standard and the memory binding, the sensors, the verify gate, the ledger, and a spec write-back. A repository outside the loop is where changes land with no ticket,
+no review and no record, and a design system is the worst place for that: one change reaches
+every product that installs it.
+
+### Four shapes, one rule
+
+The group runs three shapes next to kvart's, checked on 2026-11-09 `[measured 2026-11-09]`:
+
+| Shape | What the repo holds | Where a value comes from | What ships |
+|---|---|---|---|
+| derived (kvart) | tokens, patterns, components written by reading the shipped frontend | the product code | nothing; the product repo ships |
+| package | a token package and a component package, synced from the design tool, released with versioned changesets, with a generated-output check and visual tests | the design tool, through a sync step | a versioned package; product repos install or vendor a copy |
+| export home | the design tool's exports pulled on a weekly schedule, an inventory, tests on the pull | the design tool | the exports; one product repo reads them |
+| structural catalogue | categories, rules and past decisions as machine-readable files beside the design tool | the design tool for values, the repo for structure | nothing; designers and agents read it |
+
+The rule from the top of this document holds in every shape: a value nothing reads is a
+suggestion. What changes is the direction of the mirror. In the derived shape the product code
+moves first and the design-standards repo mirrors it in the same pull request. In the package
+shape the design-system repo moves first, releases a version, and each product repo adopts that
+version in a pull request of its own. Writing kvart's ordering rule into a package repo would
+invert it: the product would edit a value the next sync overwrites.
+
+### What the loop looks like in a package repo
+
+| Stage | In the product repo | In the design-system repo |
+|---|---|---|
+| ticket | the product ticket that needs the change | its own ticket, linked from the product ticket; the product ticket is blocked on it, not merged around it |
+| BUILD | adopts the released version, never edits the vendored copy | the sync from the design tool, then the component change; the generated-output check proves the committed output matches the sync |
+| VERIFY | browser QA against the patterns | the visual tests are the browser QA leg; the consort panel and the scanner run as on any code repo |
+| SHIP | merge and deploy | the release step publishes a version; done for the design-system ticket means released, not merged |
+| LEARN | the product spec names the version it depends on | the component catalogue is the spec layer: `retrogenerate-specs` treats each component as a feature |
+
+Two failure modes this shape adds, with the check each one needs:
+
+- **Edited vendored copy.** A product repo that vendors the package can edit the copy in place,
+  and the next adoption silently reverts the edit. Check: the vendored directory is a no-touch
+  zone in the product repo's `AGENTS.md`, and a fence fails a diff that touches it outside an
+  adoption pull request `[designed]`.
+- **Version drift.** Each product repo pins its own version, so the same component can differ
+  between products for months. Check: the divergence log gains a second axis, released version
+  against each consumer's pinned version, written at each release `[designed]`.
+
+### Which team context it binds to
+
+A design-system repo serves more than one team. It binds to the team context of the team that
+owns it, and its tickets live in that team's tracker project. Each consuming team's front-door
+`CLAUDE.md` names the design-system repo and the version it pins, so a builder in a product repo
+can find the source without guessing. A change a consuming team needs is a ticket in the owner's
+tracker, linked from theirs; a direct pull request from the consuming team goes through the same
+gate and the owner merges it.
+
+### Onboarding it
+
+Scaffold it with [deploy/02-scaffold-a-project.md](../deploy/02-scaffold-a-project.md) like any
+code repo, in the same Day 1 as the product repos it serves. The project checker needs no special
+case for the package and export shapes: run against the three group repos on 2026-11-09 it reported 18, 21 and 20 MISSING lines,
+every one an unwired loop artifact (header, binding, sensors, hooks, ruleset, gate jobs, ledger)
+and none a design-specific false alarm `[measured 2026-11-09]`. A structural catalogue with no
+build still gets the header, the binding, the ruleset, the ledger and the panel; the sensors that
+read source code (cleat, enola) have nothing to read there. Record that skip in its ADR 0001; the
+checker still prints those two lines as MISSING, because it has no flag for a repo without source
+code, so the run record names them as the expected residue.
 
 ## For an adopter
 

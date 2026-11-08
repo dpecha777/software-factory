@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.25 (2026-11-09)
+
+Design-system repositories are repos in the loop, not only a knowledge layer.
+
+- `docs/15-design-system.md`: a section on the design-system repo in the loop. Four shapes
+  (derived, package, export home, structural catalogue) with where a value comes from in each;
+  the mirror rule's direction flips in the package shape (the design-system repo releases, the
+  product repo adopts the version in its own PR); the loop table for a package repo (release is
+  SHIP, the component catalogue is the spec layer, visual tests are the browser QA leg); two new
+  failure modes with proposed checks (an edited vendored copy, consumer version drift); binding
+  to the owning team's context.
+- `docs/17-onboarding.md` §8 and flightlist D1.9: an existing design-system repo is scaffolded as
+  a code repo on Day 1; extraction is only for a design system that has no repo yet.
+- `deploy/02-scaffold-a-project.md`: one run per repo, design-system repos included.
+- `check-project.sh` unchanged: against three design-system repos it reported 18, 21 and 20
+  MISSING lines, every one an unwired loop artifact.
+
 ## 0.2.24 (2026-11-07)
 
 A Codex-only reviewer route for teams that have Codex but no reachable second vendor (no Vertex

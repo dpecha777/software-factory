@@ -170,9 +170,17 @@ specs PR merged `[measured 2026-09-07]`. See [14-pm-surface](14-pm-surface.md).
 
 ## 8. Bring in the design system, if there is one
 
-Recover design-tool handoff exports from wherever they are (kvart's were git-ignored zips in
-the docs folder), extract tokens, patterns and components into their own repo, and write the
-divergence log between the canvas and what shipped. See [15-design-system](15-design-system.md).
+If the design system already has its own repository (a package the product repos install, a
+home for design-tool exports, a structural catalogue), it is one of the team's code repos for
+the rest of this day: scaffold it with `deploy/02-scaffold-a-project.md`, run its spec bootstrap
+with each component as a feature, and name it, with the version each product pins, in the
+team-context front door. It binds to the owning team's context even when other teams consume
+it.
+
+If it does not, recover design-tool handoff exports from wherever they are (kvart's were
+git-ignored zips in the docs folder), extract tokens, patterns and components into their own
+repo, and write the divergence log between the canvas and what shipped. Either way, see
+[15-design-system](15-design-system.md#the-design-system-repo-in-the-loop).
 
 ## 9. Verify on arrival
 
