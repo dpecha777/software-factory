@@ -34,7 +34,7 @@ CFG="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 ```
 xcode-select --install                     # once; git and the compilers
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install git gh jq uv node pnpm tmux shellcheck actionlint ast-grep trivy sonar-scanner playwright-cli
+brew install git gh jq uv node pnpm tmux shellcheck actionlint ast-grep trivy sonar-scanner playwright-cli cmake
 brew install --cask claude-code codex orbstack
 ```
 
@@ -185,11 +185,13 @@ V=0.4.19; A=darwin-arm64
 curl -fsSLO "https://github.com/enola-labs/enola/releases/download/v$V/enola-$V-$A.tar.gz"
 curl -fsSLO "https://github.com/enola-labs/enola/releases/download/v$V/enola-$V-$A.sha256"
 shasum -a 256 -c "enola-$V-$A.sha256" && tar -xzf "enola-$V-$A.tar.gz" && install -m 0755 "enola-$V-$A" ~/.local/bin/enola
-# sensor 1: ripwire, from its installer at the pinned commit the reference binary was built from (0.4.0).
-# Read skills/install.sh before running it: it is a script from a third-party checkout, not a signed release.
-# RIPWIRE_NO_ACTIVATE=1 keeps it from editing your agent config.
+# sensor 1: ripwire, built from source at the pinned commit the reference binary was built from (0.4.0).
+# The repository-root install.sh builds the binary (CMake from section 1, Xcode's clang) and installs it
+# with its skills and hooks under the prefix. It edits no agent config unless RIPWIRE_ACTIVATE_CODEX=1.
+# Read it before running it: it is a script from a third-party checkout, not a signed release.
 git clone https://github.com/redhat-et/ripwire /tmp/ripwire && git -C /tmp/ripwire checkout e663ca8f8
-less /tmp/ripwire/skills/install.sh && RIPWIRE_NO_ACTIVATE=1 bash /tmp/ripwire/skills/install.sh
+less /tmp/ripwire/install.sh && RIPWIRE_INSTALL_PREFIX="$HOME/.local" bash /tmp/ripwire/install.sh
+ripwire --version                          # expect 0.4.0 ... built_from=e663ca8f8
 # sensor 2: chisle is a plugin, installed at user scope in the plugins section below
 ```
 
@@ -197,6 +199,13 @@ Make sure `~/.local/bin` is on PATH in `~/.zshrc`. The reference machine keeps l
 virtualenv with a symlink; `uv tool install` is the same thing with less ceremony and is what
 CI does. Why enola is pinned by checksum and not `brew`: the CI job installs the same release
 the same way, so the local check and the required check agree.
+
+`skills/install.sh` is not the installer. At `e663ca8f8` it only links ripwire's agent skills
+into `~/.claude/skills` and puts no `ripwire` on PATH, so the checker keeps reporting it missing.
+The root script built and installed 0.4.0 on a fresh workstation `[measured 2026-11-09]`.
+`RIPWIRE_NO_ACTIVATE` belongs to the release installer (`scripts/install.sh`, which fetches the
+latest release unless `RIPWIRE_VERSION` names a tag); neither script used here reads it. The prefix is `~/.local` because the root script otherwise picks
+Homebrew's when `brew` is on PATH, and the sensors live in the user's local bin.
 
 `enola install` and `ripwire wrap claude` write instructions into agent files. Run them in the
 project, from the scaffold runbook, not globally: the reference implementation tracks the

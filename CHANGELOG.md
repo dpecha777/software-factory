@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.26 (2026-11-09)
+
+The ripwire install line in the workstation runbook installs the binary.
+
+- `deploy/01-workstation-macos.md` §4: sensor 1 runs the repository-root `install.sh` at the
+  pinned commit with `RIPWIRE_INSTALL_PREFIX="$HOME/.local"`, then `ripwire --version`. The old
+  line ran `skills/install.sh`, which only links skills and leaves the checker's `ripwire` line
+  MISSING; the `RIPWIRE_NO_ACTIVATE` it set is read by neither script. The new line built and
+  installed 0.4.0 on a fresh workstation `[measured 2026-11-09]`.
+- §1: `cmake` joins the brew line; the build needs CMake 3.24 or later.
+
 ## 0.2.25 (2026-11-09)
 
 Design-system repositories are repos in the loop, not only a knowledge layer.
